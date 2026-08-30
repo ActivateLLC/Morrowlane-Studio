@@ -135,6 +135,49 @@ describe('the whole product, end to end', () => {
     expect(posts.every((post) => post.status === 'scheduled')).toBe(true);
   });
 
+  it('guided flow: a reviewed plan writes content but schedules nothing until approved', async () => {
+    await runtime.store.enqueueJob({
+      organizationId,
+      brandId,
+      kind: 'plan_campaign',
+      payload: {
+        goal: 'Drive sales.',
+        outcome: 'sales',
+        channels: ['instagram'],
+        durationDays: 14,
+        startDate: addDays(nowIso(), 1),
+        review: true,
+      },
+    });
+    const planned = await runNextJob(runtime);
+    expect(planned.status).toBe('succeeded');
+    expect(planned.result?.['scheduled']).toBe(0);
+
+    const campaignId = planned.result?.['campaignId'] as string;
+    const campaign = await runtime.store.getCampaign(campaignId);
+    expect(campaign?.status).toBe('ready'); // not 'active' — awaiting review
+    expect(campaign?.outcome).toBe('sales');
+
+    let posts = await runtime.store.queryScheduledPosts({ brandId });
+    const before = posts.length;
+
+    // Approve the plan's content, then activate: only now does it hit the calendar.
+    const { items } = await runtime.store.queryContent({ brandId, campaignId, limit: 500 });
+    for (const item of items) {
+      if (!item.violations.some((v) => v.severity === 'error')) {
+        await runtime.store.updateContent(item.id, { status: 'approved' });
+      }
+    }
+    await runtime.store.enqueueJob({ organizationId, brandId, kind: 'activate_campaign', payload: { campaignId } });
+    const activated = await runNextJob(runtime);
+    expect(activated.status).toBe('succeeded');
+    expect(activated.result?.['scheduled']).toBeGreaterThan(0);
+
+    posts = await runtime.store.queryScheduledPosts({ brandId });
+    expect(posts.length).toBeGreaterThan(before);
+    expect((await runtime.store.getCampaign(campaignId))?.status).toBe('active');
+  });
+
   it('fills a month with a balanced mix rather than a wall of promotion', async () => {
     await runtime.store.enqueueJob({
       organizationId,

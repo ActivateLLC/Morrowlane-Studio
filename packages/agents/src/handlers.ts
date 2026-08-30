@@ -13,8 +13,8 @@ import { buildRenderRequests, type ImageRenderer, type MediaStorage } from '@mor
 import type { DataStore } from '@morrowlane/database';
 import { applyInsights, computeInsights, performanceByContent, recordEvent } from '@morrowlane/analytics';
 import { publishPost, type SocialRegistry } from '@morrowlane/social';
-import type { Channel, Job, JobKind } from '@morrowlane/shared';
-import { NotFoundError, createLogger, isChannel, isContentFormat, newId, normalizeUrl, nowIso } from '@morrowlane/shared';
+import type { CampaignOutcomeId, Channel, Job, JobKind } from '@morrowlane/shared';
+import { NotFoundError, createLogger, isCampaignOutcome, isChannel, isContentFormat, newId, normalizeUrl, nowIso } from '@morrowlane/shared';
 import type { StepContext } from './graph.js';
 import { runOnboarding } from './onboarding.js';
 
@@ -54,6 +54,11 @@ function channels(payload: Record<string, unknown>): Channel[] {
   const value = payload['channels'];
   if (!Array.isArray(value)) return [];
   return value.filter((c): c is Channel => typeof c === 'string' && isChannel(c));
+}
+
+function outcome(payload: Record<string, unknown>): CampaignOutcomeId | null {
+  const value = payload['outcome'];
+  return isCampaignOutcome(value) ? value : null;
 }
 
 export const HANDLERS: Record<JobKind, JobHandler> = {
@@ -147,10 +152,16 @@ export const HANDLERS: Record<JobKind, JobHandler> = {
     if (!brandId) throw new Error('plan_campaign requires a brand.');
     const brain = await requireBrain(deps.store, brandId);
 
+    // Guided flow: plan and write the content, but hold scheduling until the user
+    // approves the consolidated plan. Free-form campaigns (the power path) keep the
+    // one-shot behaviour of scheduling immediately.
+    const review = Boolean(job.payload['review']);
+
     await context.progress(0.15, 'Planning the narrative');
     const campaign = await planCampaign(deps.gateway, {
       brain,
       goal: str(job.payload, 'goal') ?? 'Grow the business.',
+      outcome: outcome(job.payload),
       productName: str(job.payload, 'productName'),
       channels: channels(job.payload),
       durationDays: int(job.payload, 'durationDays', 30),
@@ -161,6 +172,17 @@ export const HANDLERS: Record<JobKind, JobHandler> = {
     await context.progress(0.4, 'Writing the content');
     const generated = await generateCampaignContent(deps.gateway, { brain, campaign });
     await deps.store.saveContent(generated.items);
+
+    if (review) {
+      // Leave status 'ready': the plan is written and waiting on the review screen.
+      return {
+        campaignId: campaign.id,
+        phases: campaign.phases.length,
+        count: generated.items.length,
+        scheduled: 0,
+        errors: generated.errors,
+      };
+    }
 
     await context.progress(0.85, 'Filling the calendar');
     const posts = scheduleCampaign(campaign, generated.items);
@@ -174,6 +196,26 @@ export const HANDLERS: Record<JobKind, JobHandler> = {
       scheduled: posts.length,
       errors: generated.errors,
     };
+  },
+
+  /** Schedules an approved plan onto the calendar and activates the campaign. */
+  async activate_campaign(job, deps, context) {
+    const campaignId = str(job.payload, 'campaignId');
+    if (!campaignId) throw new Error('activate_campaign requires a campaign.');
+    const campaign = await deps.store.getCampaign(campaignId);
+    if (!campaign) throw new NotFoundError('Campaign');
+
+    await context.progress(0.3, 'Filling the calendar');
+    const { items: content } = await deps.store.queryContent({ brandId: campaign.brandId, campaignId, limit: 500 });
+    // Only approved, rule-clean content is scheduled; anything still in review is left out.
+    const publishable = content.filter(
+      (item) => item.status === 'approved' && !item.violations.some((v) => v.severity === 'error'),
+    );
+    const posts = scheduleCampaign(campaign, publishable);
+    await deps.store.saveScheduledPosts(posts);
+    await deps.store.updateCampaign(campaignId, { status: 'active' });
+
+    return { campaignId, scheduled: posts.length };
   },
 
   async fill_calendar(job, deps, context) {

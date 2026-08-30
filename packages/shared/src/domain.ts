@@ -466,6 +466,7 @@ export const JOB_KINDS = [
   'generate_content',
   'remix_url',
   'plan_campaign',
+  'activate_campaign',
   'fill_calendar',
   'render_media',
   'publish_post',

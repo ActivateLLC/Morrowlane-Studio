@@ -8,6 +8,7 @@ import { applyInsights } from '@morrowlane/analytics';
 import { runJob } from '@morrowlane/agents';
 import {
   ValidationError,
+  getCampaignOutcome,
   isChannel,
   isContentFormat,
   normalizeUrl,
@@ -246,6 +247,76 @@ export async function createCampaign(brandId: string, formData: FormData) {
 
   revalidatePath(`/brands/${brandId}/campaigns`);
   revalidatePath(`/brands/${brandId}/calendar`);
+}
+
+/**
+ * The guided flow's generate step (steps 5–6): the user picked a business outcome, so we
+ * derive the goal from it (unless they typed their own), plan the campaign and write the
+ * content — but hold scheduling (review:true) so nothing goes live before the consolidated
+ * plan is approved. Runs inline in dev so we can land straight on the review screen.
+ */
+export async function startGuidedCampaign(brandId: string, formData: FormData) {
+  const { organizationId } = await requireBrand(brandId);
+
+  const outcomeId = String(formData.get('outcome') ?? '');
+  const outcome = getCampaignOutcome(outcomeId);
+  if (!outcome) throw new ValidationError('Choose a business outcome to aim for.');
+
+  const customGoal = String(formData.get('goal') ?? '').trim();
+  const channels = formData.getAll('channels').map(String).filter(isChannel) as Channel[];
+  const durationDays = Number(formData.get('durationDays') ?? outcome.defaultDurationDays);
+
+  const job = await enqueueAndMaybeRun({
+    organizationId,
+    brandId,
+    kind: 'plan_campaign',
+    payload: {
+      goal: customGoal || outcome.goalTemplate,
+      outcome: outcome.id,
+      productName: String(formData.get('productName') ?? '') || null,
+      channels: channels.length > 0 ? channels : ['instagram'],
+      durationDays: Number.isFinite(durationDays) ? durationDays : outcome.defaultDurationDays,
+      review: true,
+    },
+  });
+
+  revalidatePath(`/brands/${brandId}/campaigns`);
+  // Inline execution carries the new campaign id in the job result; land on its plan.
+  const campaignId = job?.result && typeof job.result['campaignId'] === 'string' ? job.result['campaignId'] : null;
+  redirect(campaignId ? `/brands/${brandId}/campaigns/${campaignId}` : `/brands/${brandId}/campaigns`);
+}
+
+/**
+ * The consolidated approval (steps 7 → 9): approve every rule-clean piece in the plan at
+ * once, then schedule the whole thing onto the calendar and activate the campaign. Content
+ * that breaks a brand rule is left in review and reported back, never silently published.
+ */
+export async function approvePlan(brandId: string, campaignId: string) {
+  const { organizationId, runtime } = await requireBrand(brandId);
+  const campaign = await runtime.store.getCampaign(campaignId);
+  if (!campaign || campaign.brandId !== brandId) throw new ValidationError('That campaign is not in this brand.');
+
+  const { items } = await runtime.store.queryContent({ brandId, campaignId, limit: 500 });
+  const blocked = items.filter((item) => item.violations.some((v) => v.severity === 'error'));
+  const approvable = items.filter((item) => !blocked.includes(item) && item.status !== 'published');
+
+  for (const item of approvable) {
+    if (item.status !== 'approved') await runtime.store.updateContent(item.id, { status: 'approved' });
+  }
+
+  if (approvable.length === 0) {
+    throw new ValidationError(
+      blocked.length > 0
+        ? 'Every piece in this plan breaks a brand rule. Fix them before scheduling.'
+        : 'There is nothing in this plan to schedule yet.',
+    );
+  }
+
+  await enqueueAndMaybeRun({ organizationId, brandId, kind: 'activate_campaign', payload: { campaignId } });
+
+  revalidatePath(`/brands/${brandId}/campaigns/${campaignId}`);
+  revalidatePath(`/brands/${brandId}/calendar`);
+  redirect(`/brands/${brandId}/calendar`);
 }
 
 export async function updateCampaignStatus(brandId: string, campaignId: string, status: string) {

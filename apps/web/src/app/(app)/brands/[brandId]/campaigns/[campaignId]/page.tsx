@@ -3,7 +3,8 @@ import { notFound } from 'next/navigation';
 import { performanceByContent, summariseFunnel } from '@morrowlane/analytics';
 import { addDays } from '@morrowlane/shared';
 import { Badge, Button, Card, CardBody, CardHeader, Stat, cn } from '@morrowlane/ui';
-import { updateCampaignStatus } from '@/server/actions';
+import { getCampaignOutcome } from '@morrowlane/shared';
+import { approvePlan, updateCampaignStatus } from '@/server/actions';
 import { requireBrand } from '@/server/session';
 import { formatDay, formatDateTime, formatNumber, STATUS_TONES, statusLabel } from '@/lib/format';
 
@@ -41,6 +42,12 @@ export default async function CampaignDetailPage({
 
   const byPhase = new Map(campaign.phases.map((phase) => [phase.id, items.filter((item) => item.campaignPhaseId === phase.id)]));
 
+  // Step 7: while the campaign is 'ready' it is a plan awaiting one consolidated approval.
+  const awaitingReview = campaign.status === 'ready';
+  const blockedCount = items.filter((item) => item.violations.some((v) => v.severity === 'error')).length;
+  const approvableCount = items.length - blockedCount;
+  const outcome = getCampaignOutcome(campaign.outcome);
+
   return (
     <div className="space-y-6">
       <div>
@@ -56,7 +63,10 @@ export default async function CampaignDetailPage({
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Badge tone={campaign.status === 'active' ? 'positive' : 'neutral'}>{campaign.status}</Badge>
+            {outcome ? <Badge tone="neutral">{outcome.label}</Badge> : null}
+            <Badge tone={campaign.status === 'active' ? 'positive' : awaitingReview ? 'caution' : 'neutral'}>
+              {awaitingReview ? 'plan ready' : campaign.status}
+            </Badge>
             {campaign.status === 'active' ? (
               <form action={updateCampaignStatus.bind(null, brandId, campaignId, 'complete')}>
                 <Button type="submit" variant="secondary" size="sm">
@@ -73,6 +83,32 @@ export default async function CampaignDetailPage({
           </div>
         </div>
       </div>
+
+      {awaitingReview ? (
+        <Card className="border-accent/40 bg-accent-soft/40">
+          <CardBody className="flex flex-wrap items-center justify-between gap-4 py-4">
+            <div className="min-w-0">
+              <h2 className="text-sm font-semibold text-ink">One plan to review</h2>
+              <p className="mt-0.5 text-[13px] text-ink-soft">
+                {items.length} {items.length === 1 ? 'piece' : 'pieces'} across {campaign.phases.length} phases, adapted
+                for {campaign.channels.join(', ')}. Approve to schedule the whole run onto your calendar.
+                {blockedCount > 0 ? (
+                  <span className="text-caution">
+                    {' '}
+                    {blockedCount} {blockedCount === 1 ? 'piece breaks' : 'pieces break'} a brand rule and won&apos;t be
+                    scheduled until fixed.
+                  </span>
+                ) : null}
+              </p>
+            </div>
+            <form action={approvePlan.bind(null, brandId, campaignId)} className="shrink-0">
+              <Button type="submit" size="lg" disabled={approvableCount === 0}>
+                Approve &amp; schedule {approvableCount} {approvableCount === 1 ? 'post' : 'posts'}
+              </Button>
+            </form>
+          </CardBody>
+        </Card>
+      ) : null}
 
       <Card>
         <CardBody className="py-4">

@@ -9,6 +9,7 @@ import { LogoMark } from '@/components/logo';
 
 const ITEMS = [
   { slug: '', label: 'Today', icon: 'home' },
+  { slug: 'plan', label: 'Plan', icon: 'rocket' },
   { slug: 'studio', label: 'Studio', icon: 'sparkle' },
   { slug: 'remix', label: 'Remix', icon: 'link' },
   { slug: 'campaigns', label: 'Campaigns', icon: 'flag' },
@@ -21,7 +22,7 @@ const ITEMS = [
 ];
 
 /** The five tabs a phone thumb actually needs; the rest live behind Menu. */
-const MOBILE_TABS = ['', 'studio', 'calendar', 'library'];
+const MOBILE_TABS = ['', 'plan', 'calendar', 'library'];
 
 function NavList({
   brandId,

@@ -87,11 +87,11 @@ export default async function BrandTodayPage({ params }: { params: Promise<{ bra
               </CardBody>
             </Card>
           </Link>
-          <Link href={`/brands/${brandId}/campaigns`}>
-            <Card className="h-full transition-shadow hover:shadow-lifted">
+          <Link href={`/brands/${brandId}/plan`}>
+            <Card className="h-full border-accent/40 transition-shadow hover:shadow-lifted">
               <CardBody className="py-5">
                 <p className="font-medium text-ink">Run a campaign</p>
-                <p className="mt-1 text-[13px] text-ink-soft">Turn a business objective into a coordinated campaign.</p>
+                <p className="mt-1 text-[13px] text-ink-soft">Pick an outcome; get one plan to approve, scheduled for you.</p>
               </CardBody>
             </Card>
           </Link>

@@ -129,7 +129,7 @@ async function run() {
 
   if (brandId) {
     const base = `/brands/${brandId}`;
-    const routes = ['', '/studio', '/remix', '/campaigns', '/calendar', '/library', '/connections', '/intelligence', '/analytics', '/brain'];
+    const routes = ['', '/plan', '/studio', '/remix', '/campaigns', '/calendar', '/library', '/connections', '/intelligence', '/analytics', '/brain'];
     for (const r of routes) await visit(context, `${base}${r}`);
 
     // Detail routes: follow a real link so the id is valid.
