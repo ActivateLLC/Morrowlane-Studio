@@ -18,7 +18,17 @@ import {
   type Channel,
   type ContentFormat,
 } from '@morrowlane/shared';
-import { DEMO_COOKIE_NAME, encodeDemoSession, ensureDemoSeed, requireBrand, requireSession, supabaseConfigured } from './session.js';
+import {
+  DEMO_COOKIE_NAME,
+  encodeDemoSession,
+  ensureDemoSeed,
+  requireBrandAdmin,
+  requireBrandWrite,
+  requireOrgAdmin,
+  requireOrgWrite,
+  requireSession,
+  supabaseConfigured,
+} from './session.js';
 
 /**
  * Every write in the product. Jobs are enqueued and then run inline when no separate
@@ -74,7 +84,7 @@ async function fileToDataUrl(file: File, maxBytes: number): Promise<string | nul
  * Brand Brain in the same system, editable and ready to generate against.
  */
 export async function startBrandBuilder(formData: FormData) {
-  const session = await requireSession();
+  const session = await requireOrgWrite();
 
   const businessName = String(formData.get('businessName') ?? '').trim();
   const whatYouSell = String(formData.get('whatYouSell') ?? '').trim();
@@ -119,7 +129,7 @@ export async function startBrandBuilder(formData: FormData) {
 }
 
 export async function addBrand(formData: FormData) {
-  const session = await requireSession();
+  const session = await requireOrgWrite();
   const raw = String(formData.get('websiteUrl') ?? '');
   const websiteUrl = normalizeUrl(raw);
   if (!websiteUrl) {
@@ -146,7 +156,7 @@ export async function addBrand(formData: FormData) {
 }
 
 export async function reanalyzeBrand(brandId: string) {
-  const { brand, organizationId } = await requireBrand(brandId);
+  const { brand, organizationId } = await requireBrandWrite(brandId);
   await enqueueAndMaybeRun({
     organizationId,
     brandId: brand.id,
@@ -158,7 +168,7 @@ export async function reanalyzeBrand(brandId: string) {
 
 /** Editing a Brand Brain field locks it, so the next analysis cannot overwrite it. */
 export async function updateBrainField(brandId: string, path: string, value: string) {
-  const { runtime } = await requireBrand(brandId);
+  const { runtime } = await requireBrandWrite(brandId);
   const brain = await runtime.store.getBrain(brandId);
   if (!brain) throw new ValidationError('This brand has not been analysed yet.');
 
@@ -187,7 +197,7 @@ export async function updateBrainField(brandId: string, path: string, value: str
 /* ------------------------------ Studio --------------------------------- */
 
 export async function runStudio(brandId: string, formData: FormData) {
-  const { organizationId } = await requireBrand(brandId);
+  const { organizationId } = await requireBrandWrite(brandId);
   const instruction = String(formData.get('instruction') ?? '').trim();
   if (!instruction) throw new ValidationError('Tell Morrowlane what you want to create.');
 
@@ -244,7 +254,7 @@ export async function runStudio(brandId: string, formData: FormData) {
 }
 
 export async function generateFormat(brandId: string, formData: FormData) {
-  const { organizationId } = await requireBrand(brandId);
+  const { organizationId } = await requireBrandWrite(brandId);
   const format = String(formData.get('format') ?? '');
   if (!isContentFormat(format)) throw new ValidationError('Choose a content format.');
 
@@ -266,7 +276,7 @@ export async function generateFormat(brandId: string, formData: FormData) {
 }
 
 export async function remix(brandId: string, formData: FormData) {
-  const { organizationId } = await requireBrand(brandId);
+  const { organizationId } = await requireBrandWrite(brandId);
   const url = normalizeUrl(String(formData.get('url') ?? ''));
   if (!url) throw new ValidationError('Paste a page address to remix.');
 
@@ -284,7 +294,7 @@ export async function remix(brandId: string, formData: FormData) {
 /* ----------------------------- Campaigns -------------------------------- */
 
 export async function createCampaign(brandId: string, formData: FormData) {
-  const { organizationId } = await requireBrand(brandId);
+  const { organizationId } = await requireBrandWrite(brandId);
   const goal = String(formData.get('goal') ?? '').trim();
   if (!goal) throw new ValidationError('Describe what this campaign should achieve.');
 
@@ -313,7 +323,7 @@ export async function createCampaign(brandId: string, formData: FormData) {
  * plan is approved. Runs inline in dev so we can land straight on the review screen.
  */
 export async function startGuidedCampaign(brandId: string, formData: FormData) {
-  const { organizationId } = await requireBrand(brandId);
+  const { organizationId } = await requireBrandWrite(brandId);
 
   const outcomeId = String(formData.get('outcome') ?? '');
   const outcome = getCampaignOutcome(outcomeId);
@@ -349,7 +359,7 @@ export async function startGuidedCampaign(brandId: string, formData: FormData) {
  * that breaks a brand rule is left in review and reported back, never silently published.
  */
 export async function approvePlan(brandId: string, campaignId: string) {
-  const { organizationId, runtime } = await requireBrand(brandId);
+  const { organizationId, runtime } = await requireBrandWrite(brandId);
   const campaign = await runtime.store.getCampaign(campaignId);
   if (!campaign || campaign.brandId !== brandId) throw new ValidationError('That campaign is not in this brand.');
 
@@ -378,7 +388,7 @@ export async function approvePlan(brandId: string, campaignId: string) {
 }
 
 export async function updateCampaignStatus(brandId: string, campaignId: string, status: string) {
-  const { runtime } = await requireBrand(brandId);
+  const { runtime } = await requireBrandWrite(brandId);
   const campaign = await runtime.store.getCampaign(campaignId);
   if (!campaign || campaign.brandId !== brandId) throw new ValidationError('That campaign is not in this brand.');
   if (!['active', 'complete', 'archived', 'ready'].includes(status)) {
@@ -392,7 +402,7 @@ export async function updateCampaignStatus(brandId: string, campaignId: string, 
 /* ------------------------------ Calendar -------------------------------- */
 
 export async function fillMonthAction(brandId: string) {
-  const { organizationId } = await requireBrand(brandId);
+  const { organizationId } = await requireBrandWrite(brandId);
   await enqueueAndMaybeRun({
     organizationId,
     brandId,
@@ -406,7 +416,7 @@ export async function fillMonthAction(brandId: string) {
 }
 
 export async function reschedulePost(brandId: string, postId: string, scheduledFor: string) {
-  const { runtime } = await requireBrand(brandId);
+  const { runtime } = await requireBrandWrite(brandId);
   const post = await runtime.store.getScheduledPost(postId);
   if (!post || post.brandId !== brandId) throw new ValidationError('That post is not on this calendar.');
   if (post.status === 'published') throw new ValidationError('A published post cannot be rescheduled.');
@@ -416,7 +426,7 @@ export async function reschedulePost(brandId: string, postId: string, scheduledF
 }
 
 export async function cancelPost(brandId: string, postId: string) {
-  const { runtime } = await requireBrand(brandId);
+  const { runtime } = await requireBrandWrite(brandId);
   const post = await runtime.store.getScheduledPost(postId);
   if (!post || post.brandId !== brandId) throw new ValidationError('That post is not on this calendar.');
   await runtime.store.updateScheduledPost(postId, { status: 'cancelled' });
@@ -424,7 +434,7 @@ export async function cancelPost(brandId: string, postId: string) {
 }
 
 export async function publishNow(brandId: string, postId: string) {
-  const { organizationId, runtime } = await requireBrand(brandId);
+  const { organizationId, runtime } = await requireBrandWrite(brandId);
   const post = await runtime.store.getScheduledPost(postId);
   if (!post || post.brandId !== brandId) throw new ValidationError('That post is not on this calendar.');
 
@@ -441,7 +451,7 @@ export async function publishNow(brandId: string, postId: string) {
 /* ------------------------------- Content -------------------------------- */
 
 export async function approveContent(brandId: string, contentId: string) {
-  const { runtime } = await requireBrand(brandId);
+  const { runtime } = await requireBrandWrite(brandId);
   const item = await runtime.store.getContent(contentId);
   if (!item || item.brandId !== brandId) throw new ValidationError('That content is not in this brand.');
 
@@ -453,7 +463,7 @@ export async function approveContent(brandId: string, contentId: string) {
 }
 
 export async function updateContentBody(brandId: string, contentId: string, body: string) {
-  const { runtime } = await requireBrand(brandId);
+  const { runtime } = await requireBrandWrite(brandId);
   const brain = await runtime.store.getBrain(brandId);
   const item = await runtime.store.getContent(contentId);
   if (!item || item.brandId !== brandId) throw new ValidationError('That content is not in this brand.');
@@ -482,7 +492,7 @@ export async function updateContentBody(brandId: string, contentId: string, body
 }
 
 export async function scheduleContentItem(brandId: string, contentId: string, scheduledFor: string) {
-  const { runtime } = await requireBrand(brandId);
+  const { runtime } = await requireBrandWrite(brandId);
   const item = await runtime.store.getContent(contentId);
   if (!item || item.brandId !== brandId) throw new ValidationError('That content is not in this brand.');
   if (item.violations.some((v) => v.severity === 'error')) {
@@ -514,7 +524,7 @@ export async function scheduleContentItem(brandId: string, contentId: string, sc
 }
 
 export async function duplicateContent(brandId: string, contentId: string) {
-  const { runtime } = await requireBrand(brandId);
+  const { runtime } = await requireBrandWrite(brandId);
   const item = await runtime.store.getContent(contentId);
   if (!item || item.brandId !== brandId) throw new ValidationError('That content is not in this brand.');
 
@@ -535,7 +545,7 @@ export async function duplicateContent(brandId: string, contentId: string) {
 
 /** Three fresh takes on the same idea, linked back to this item for the learning loop. */
 export async function generateVariants(brandId: string, contentId: string) {
-  const { organizationId, runtime } = await requireBrand(brandId);
+  const { organizationId, runtime } = await requireBrandWrite(brandId);
   const item = await runtime.store.getContent(contentId);
   if (!item || item.brandId !== brandId) throw new ValidationError('That content is not in this brand.');
 
@@ -559,7 +569,7 @@ export async function generateVariants(brandId: string, contentId: string) {
 
 /** Renders the creatives for an image-format piece: slides, quote cards, infographics. */
 export async function renderMedia(brandId: string, contentId: string) {
-  const { organizationId, runtime } = await requireBrand(brandId);
+  const { organizationId, runtime } = await requireBrandWrite(brandId);
   const item = await runtime.store.getContent(contentId);
   if (!item || item.brandId !== brandId) throw new ValidationError('That content is not in this brand.');
 
@@ -573,7 +583,7 @@ export async function renderMedia(brandId: string, contentId: string) {
 }
 
 export async function deleteContentItem(brandId: string, contentId: string) {
-  const { runtime } = await requireBrand(brandId);
+  const { runtime } = await requireBrandWrite(brandId);
   const item = await runtime.store.getContent(contentId);
   if (!item || item.brandId !== brandId) throw new ValidationError('That content is not in this brand.');
   await runtime.store.deleteContent(contentId);
@@ -583,7 +593,7 @@ export async function deleteContentItem(brandId: string, contentId: string) {
 /* ----------------------------- Intelligence ----------------------------- */
 
 export async function addCompetitor(brandId: string, formData: FormData) {
-  const { runtime } = await requireBrand(brandId);
+  const { runtime } = await requireBrandWrite(brandId);
   const websiteUrl = normalizeUrl(String(formData.get('websiteUrl') ?? ''));
   if (!websiteUrl) throw new ValidationError('Paste a competitor website address.');
 
@@ -602,7 +612,7 @@ export async function addCompetitor(brandId: string, formData: FormData) {
 }
 
 export async function removeCompetitor(brandId: string, competitorId: string) {
-  const { runtime } = await requireBrand(brandId);
+  const { runtime } = await requireBrandWrite(brandId);
   const owned = (await runtime.store.listCompetitors(brandId)).some((c) => c.id === competitorId);
   if (!owned) throw new ValidationError('That competitor is not tracked by this brand.');
   await runtime.store.deleteCompetitor(competitorId);
@@ -610,7 +620,7 @@ export async function removeCompetitor(brandId: string, competitorId: string) {
 }
 
 export async function applyInsight(brandId: string, insightId: string) {
-  const { runtime } = await requireBrand(brandId);
+  const { runtime } = await requireBrandWrite(brandId);
   const owned = (await runtime.store.listInsights(brandId)).some((i) => i.id === insightId);
   if (!owned) throw new ValidationError('That insight is not in this brand.');
   await runtime.store.updateInsight(insightId, { applied: true });
@@ -618,7 +628,7 @@ export async function applyInsight(brandId: string, insightId: string) {
 }
 
 export async function unapplyInsight(brandId: string, insightId: string) {
-  const { runtime } = await requireBrand(brandId);
+  const { runtime } = await requireBrandWrite(brandId);
   const owned = (await runtime.store.listInsights(brandId)).some((i) => i.id === insightId);
   if (!owned) throw new ValidationError('That insight is not in this brand.');
   await runtime.store.updateInsight(insightId, { applied: false });
@@ -626,14 +636,14 @@ export async function unapplyInsight(brandId: string, insightId: string) {
 }
 
 export async function recomputeInsights(brandId: string) {
-  const { organizationId } = await requireBrand(brandId);
+  const { organizationId } = await requireBrandWrite(brandId);
   await enqueueAndMaybeRun({ organizationId, brandId, kind: 'compute_insights', payload: {} });
   revalidatePath(`/brands/${brandId}/analytics`);
 }
 
 /** Runs an opportunity's one-click action. This is the whole point of the card. */
 export async function actOnOpportunity(brandId: string, kind: string, payload: Record<string, unknown>) {
-  const { organizationId } = await requireBrand(brandId);
+  const { organizationId } = await requireBrandWrite(brandId);
 
   if (kind === 'generate_campaign') {
     await enqueueAndMaybeRun({
@@ -673,7 +683,7 @@ export async function actOnOpportunity(brandId: string, kind: string, payload: R
 /* ----------------------------- Connections ------------------------------ */
 
 export async function connectDemoAccount(brandId: string, channel: string) {
-  const { runtime } = await requireBrand(brandId);
+  const { runtime } = await requireBrandAdmin(brandId);
   if (!isChannel(channel)) throw new ValidationError('That is not a channel Morrowlane publishes to.');
 
   const provider = runtime.social.find(channel);
@@ -705,7 +715,7 @@ export async function connectDemoAccount(brandId: string, channel: string) {
 }
 
 export async function disconnectAccount(brandId: string, connectionId: string) {
-  const { runtime } = await requireBrand(brandId);
+  const { runtime } = await requireBrandAdmin(brandId);
   const owned = (await runtime.store.listConnections(brandId)).some((c) => c.id === connectionId);
   if (!owned) throw new ValidationError('That connection is not in this brand.');
   await runtime.store.deleteConnection(connectionId);
@@ -715,7 +725,7 @@ export async function disconnectAccount(brandId: string, connectionId: string) {
 /* -------------------------------- Team ---------------------------------- */
 
 export async function inviteTeammate(formData: FormData) {
-  const session = await requireSession();
+  const session = await requireOrgAdmin();
   const email = String(formData.get('email') ?? '').trim();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new ValidationError('Enter a valid email address.');
 
@@ -729,7 +739,7 @@ export async function inviteTeammate(formData: FormData) {
 }
 
 export async function removeTeammate(membershipId: string) {
-  const session = await requireSession();
+  const session = await requireOrgAdmin();
   const members = await session.runtime.store.listMemberships(session.organizationId);
   const target = members.find((member) => member.id === membershipId);
   if (!target) throw new ValidationError('That member is not in your workspace.');

@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
 import { getRuntime, seedDemo, type Runtime } from '@morrowlane/agents';
-import { UnauthorizedError, createLogger } from '@morrowlane/shared';
+import { UnauthorizedError, canAdminister, canWrite, createLogger, type MemberRole } from '@morrowlane/shared';
 
 const log = createLogger('web:session');
 
@@ -15,6 +15,8 @@ export interface SessionUser {
 export interface Session {
   user: SessionUser;
   organizationId: string;
+  /** The caller's role in that organization; gates every write. */
+  role: MemberRole;
   runtime: Runtime;
 }
 
@@ -100,10 +102,49 @@ export async function requireSession(): Promise<Session> {
       ownerEmail: user.email,
     });
     log.info('created first organization', { userId: user.id, organizationId: organization.id });
-    return { user, organizationId: organization.id, runtime };
+    return { user, organizationId: organization.id, role: 'owner', runtime };
   }
 
-  return { user, organizationId: organizations[0]!.id, runtime };
+  const organizationId = organizations[0]!.id;
+  const membership = await runtime.store.getMembership(organizationId, user.id);
+  // No readable membership means no proven capability: fall back to read-only.
+  return { user, organizationId, role: membership?.role ?? 'viewer', runtime };
+}
+
+/** A brand the caller may modify. Use for every mutating action. */
+export async function requireBrandWrite(brandId: string) {
+  const session = await requireBrand(brandId);
+  if (!canWrite(session.role)) {
+    throw new UnauthorizedError('Your role on this workspace is read-only.');
+  }
+  return session;
+}
+
+/** A brand whose connections or team the caller may manage. */
+export async function requireBrandAdmin(brandId: string) {
+  const session = await requireBrand(brandId);
+  if (!canAdminister(session.role)) {
+    throw new UnauthorizedError('Only a workspace admin can change this.');
+  }
+  return session;
+}
+
+/** Organization-level writes that are not scoped to a brand (creating one, for instance). */
+export async function requireOrgWrite() {
+  const session = await requireSession();
+  if (!canWrite(session.role)) {
+    throw new UnauthorizedError('Your role on this workspace is read-only.');
+  }
+  return session;
+}
+
+/** Organization-level administration (team management), independent of any brand. */
+export async function requireOrgAdmin() {
+  const session = await requireSession();
+  if (!canAdminister(session.role)) {
+    throw new UnauthorizedError('Only a workspace admin can change this.');
+  }
+  return session;
 }
 
 /** Confirms the brand belongs to the caller's organization before anything touches it. */

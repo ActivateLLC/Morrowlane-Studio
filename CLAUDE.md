@@ -11,7 +11,8 @@ pnpm dev:api                 # attribution ingestion API on :4000
 pnpm dev:worker              # background job worker (optional locally — jobs also run inline)
 pnpm test                    # ALL unit tests — vitest MUST run from the repo root
 npx vitest run packages/agents/src/pipeline.test.ts   # single test file (still from root)
-pnpm build                   # packages first, then the web app
+pnpm build                   # packages first, then the web app (web build clears .next first —
+                             # incremental builds trip over the root not-found route)
 pnpm typecheck               # per-package tsc (there is no root tsconfig — `tsc -b` at root fails)
 ```
 
