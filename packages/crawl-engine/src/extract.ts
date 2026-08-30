@@ -31,7 +31,10 @@ const SOCIAL_HOSTS =
 const CTA_PATTERN =
   /^(get started|start (free|now|today)|sign up|book( a)? (demo|call)|request( a)? (demo|quote)|contact (us|sales)|learn more|try (it )?free|apply now|shop now|buy now|subscribe|download|join( now)?|see plans|get( a)? quote|schedule.*)$/i;
 
-const PRICE_PATTERN = /(?:[$£€]\s?\d[\d,]*(?:\.\d{2})?|\b\d[\d,]*(?:\.\d{2})?\s?(?:USD|EUR|GBP)\b)(?:\s?\/\s?(?:mo|month|yr|year|user))?/gi;
+// The billing period is part of the price. "$10" and "$10 per month" are different
+// offers, and content generated from the first one misprices the product.
+const PRICE_PATTERN =
+  /(?:[$£€]\s?\d[\d,]*(?:\.\d{2})?|\b\d[\d,]*(?:\.\d{2})?\s?(?:USD|EUR|GBP)\b)(?:\s?(?:\/|per|a|each)\s?(?:mo\b|month|yr\b|year|week|day|user|seat|session|visit|person))?/gi;
 
 const HEX_COLOR_PATTERN = /#(?:[0-9a-f]{6}|[0-9a-f]{3})\b/gi;
 

@@ -53,7 +53,7 @@ describe('extractPage', () => {
     expect(page.title).toContain('Credit Builder Account');
     expect(page.metaDescription).toContain('reports on-time payments');
     expect(page.structuredDataTypes).toContain('Product');
-    expect(page.prices).toContain('$10');
+    expect(page.prices).toContain('$10 a month');
     expect(page.ctas).toContain('Get started');
     expect(page.images.some((i) => i.url.endsWith('credit-builder-card.png'))).toBe(true);
   });
