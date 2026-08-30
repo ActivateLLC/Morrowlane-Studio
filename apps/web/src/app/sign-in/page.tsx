@@ -24,6 +24,17 @@ export default async function SignInPage() {
         <div className="rounded-2xl border border-shell-line bg-white p-6 shadow-lifted">
           {supabaseConfigured() ? (
             <SupabaseSignIn />
+          ) : process.env['VERCEL'] ? (
+            // Serverless previews without database env vars cannot run the demo: the
+            // in-memory store doesn't survive across lambdas, so every navigation
+            // would land on an empty workspace. Say so instead of offering a broken door.
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-ink">This preview has no database attached</p>
+              <p className="text-sm text-ink-soft">
+                Preview deployments need the Supabase environment variables enabled for the
+                Preview environment in Vercel. The production site is unaffected.
+              </p>
+            </div>
           ) : (
             <form action={startDemoSession} className="space-y-4">
               <p className="text-sm text-ink-soft">

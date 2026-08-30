@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers';
+import { notFound, redirect } from 'next/navigation';
 import { createServerClient } from '@supabase/ssr';
 import { getRuntime, seedDemo, type Runtime } from '@morrowlane/agents';
 import { UnauthorizedError, canAdminister, canWrite, createLogger, type MemberRole } from '@morrowlane/shared';
@@ -79,7 +80,10 @@ export const DEMO_COOKIE_NAME = DEMO_COOKIE;
  */
 export async function requireSession(): Promise<Session> {
   const user = await getSessionUser();
-  if (!user) throw new UnauthorizedError();
+  // Redirect, don't throw: pages render in parallel with their layout, so a thrown
+  // Unauthorized could beat the layout's redirect and hand a logged-out visitor the
+  // error boundary instead of the sign-in screen. redirect() works in actions too.
+  if (!user) redirect('/sign-in');
 
   const runtime = getRuntime();
 
@@ -152,7 +156,10 @@ export async function requireBrand(brandId: string) {
   const session = await requireSession();
   const brand = await session.runtime.store.getBrand(brandId);
   if (!brand || brand.organizationId !== session.organizationId) {
-    throw new UnauthorizedError('That brand is not in your workspace.');
+    // notFound, not a thrown error: stale links (old demo workspaces, revoked access)
+    // should land on the branded 404, and it deliberately does not reveal whether the
+    // id exists in someone else's workspace.
+    notFound();
   }
   return { ...session, brand };
 }
