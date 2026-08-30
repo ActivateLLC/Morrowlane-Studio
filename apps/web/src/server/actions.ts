@@ -714,6 +714,17 @@ export async function connectDemoAccount(brandId: string, channel: string) {
   revalidatePath(`/brands/${brandId}/connections`);
 }
 
+/**
+ * Checks every connected account's token before it silently lapses. Social platforms do
+ * not warn you when a token expires — posts just stop going out — so this is what lets
+ * the workspace find out ahead of a campaign rather than after it fails.
+ */
+export async function checkConnections(brandId: string) {
+  const { organizationId } = await requireBrandWrite(brandId);
+  await enqueueAndMaybeRun({ organizationId, brandId, kind: 'validate_connections', payload: {} });
+  revalidatePath(`/brands/${brandId}/connections`);
+}
+
 export async function disconnectAccount(brandId: string, connectionId: string) {
   const { runtime } = await requireBrandAdmin(brandId);
   const owned = (await runtime.store.listConnections(brandId)).some((c) => c.id === connectionId);

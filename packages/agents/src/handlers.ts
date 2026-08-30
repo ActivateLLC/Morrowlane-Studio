@@ -355,6 +355,62 @@ export const HANDLERS: Record<JobKind, JobHandler> = {
     return { rendered: assetIds.length, renderer: deps.imageRenderer.name, assetIds };
   },
 
+  /**
+   * Connection health. Social tokens expire silently — Facebook's are 60-day, and no
+   * platform tells you when one lapses — so posts simply stop going out. This checks
+   * every connection ahead of time and records the verdict, which is what lets the UI
+   * warn before a campaign fails rather than after.
+   */
+  async validate_connections(job, deps, context) {
+    const brandId = job.brandId;
+    if (!brandId) throw new Error('validate_connections requires a brand.');
+
+    const connections = await deps.store.listConnections(brandId);
+    let checked = 0;
+    let expired = 0;
+
+    for (const [index, connection] of connections.entries()) {
+      await context.progress((index + 1) / Math.max(1, connections.length), `Checking ${connection.channel}`);
+
+      // A known expiry in the past needs no API call to be certain about.
+      if (connection.expiresAt && Date.parse(connection.expiresAt) <= Date.now()) {
+        if (connection.status !== 'expired') {
+          await deps.store.updateConnection(connection.id, { status: 'expired', lastValidatedAt: nowIso() });
+        }
+        expired += 1;
+        checked += 1;
+        continue;
+      }
+
+      const secret = await deps.store.getConnectionSecret(connection.id);
+      if (!secret) {
+        await deps.store.updateConnection(connection.id, { status: 'error', lastValidatedAt: nowIso() });
+        continue;
+      }
+
+      try {
+        const provider = deps.social.get(connection.channel);
+        const result = await provider.validate(connection, secret.accessToken);
+        await deps.store.updateConnection(connection.id, {
+          status: result.valid ? 'active' : 'expired',
+          lastValidatedAt: nowIso(),
+          ...(result.expiresAt ? { expiresAt: result.expiresAt } : {}),
+        });
+        if (!result.valid) expired += 1;
+        checked += 1;
+      } catch (error) {
+        // A checking failure is not proof the connection is dead; record and move on.
+        log.warn('connection check failed', {
+          connectionId: connection.id,
+          channel: connection.channel,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    return { connections: connections.length, checked, expired };
+  },
+
   async publish_post(job, deps, context) {
     const postId = str(job.payload, 'scheduledPostId');
     if (!postId) throw new Error('publish_post requires a scheduled post.');
