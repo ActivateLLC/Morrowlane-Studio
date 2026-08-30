@@ -60,7 +60,7 @@ export default async function ConnectionsPage({ params }: { params: Promise<{ br
                         ? provider.capabilities.requiresMedia
                           ? 'Requires rendered media'
                           : 'Ready to connect'
-                        : 'Credentials not configured'}
+                        : 'Not available on this plan yet'}
                     </p>
                   </div>
                   {connected ? (
@@ -78,9 +78,8 @@ export default async function ConnectionsPage({ params }: { params: Promise<{ br
           })}
         </div>
         <p className="mt-3 text-[12px] text-ink-faint">
-          In production each Connect button starts the network's OAuth flow. With mock providers active
-          (MORROWLANE_MOCK_SOCIAL=1 or demo mode) it creates a working demo connection so the whole
-          publish pipeline can be exercised.
+          Connecting an account opens that network's own sign-in, so your password is never shared with
+          Morrowlane. You can disconnect at any time.
         </p>
       </section>
     </div>

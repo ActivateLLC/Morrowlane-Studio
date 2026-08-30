@@ -8,6 +8,7 @@ import { applyInsights } from '@morrowlane/analytics';
 import { runJob } from '@morrowlane/agents';
 import {
   ValidationError,
+  createLogger,
   getCampaignOutcome,
   isChannel,
   isContentFormat,
@@ -29,6 +30,8 @@ import {
   requireSession,
   supabaseConfigured,
 } from './session.js';
+
+const log = createLogger('web:actions');
 
 /**
  * Every write in the product. Jobs are enqueued and then run inline when no separate
@@ -385,6 +388,70 @@ export async function approvePlan(brandId: string, campaignId: string) {
   revalidatePath(`/brands/${brandId}/calendar`);
   // Golden-path completion: the "your month is ready" hand-off into the power pages.
   redirect(`/brands/${brandId}/ready?campaign=${campaignId}`);
+}
+
+/** Approves just the pieces the reviewer selected, so approval is many small decisions. */
+export async function approveSelected(brandId: string, contentIds: string[]) {
+  const { runtime } = await requireBrandWrite(brandId);
+  if (contentIds.length === 0) throw new ValidationError('Select something to approve first.');
+
+  let approved = 0;
+  let blocked = 0;
+  for (const contentId of contentIds) {
+    const item = await runtime.store.getContent(contentId);
+    if (!item || item.brandId !== brandId) continue;
+    if (item.violations.some((v) => v.severity === 'error')) {
+      blocked += 1;
+      continue;
+    }
+    await runtime.store.updateContent(contentId, { status: 'approved' });
+    approved += 1;
+  }
+
+  revalidatePath(`/brands/${brandId}/library`);
+  if (blocked > 0 && approved === 0) {
+    throw new ValidationError('Everything you selected breaks a brand rule. Fix those pieces first.');
+  }
+  return { approved, blocked };
+}
+
+/** Removes pieces from a plan before it is scheduled. */
+export async function removeSelected(brandId: string, contentIds: string[]) {
+  const { runtime } = await requireBrandWrite(brandId);
+  for (const contentId of contentIds) {
+    const item = await runtime.store.getContent(contentId);
+    if (!item || item.brandId !== brandId) continue;
+    await runtime.store.deleteContent(contentId);
+  }
+  revalidatePath(`/brands/${brandId}/library`);
+}
+
+/**
+ * The escape hatch. Approving a plan schedules dozens of posts at once; until now the
+ * only way back was to expand and delete each one. This cancels every post in the
+ * campaign that has not published yet, in one call, and returns the campaign to a plan.
+ */
+export async function pauseCampaign(brandId: string, campaignId: string) {
+  const { runtime } = await requireBrandWrite(brandId);
+  const campaign = await runtime.store.getCampaign(campaignId);
+  if (!campaign || campaign.brandId !== brandId) throw new ValidationError('That campaign is not in this brand.');
+
+  const { items } = await runtime.store.queryContent({ brandId, campaignId, limit: 500 });
+  const contentIds = new Set(items.map((item) => item.id));
+  const posts = await runtime.store.queryScheduledPosts({ brandId });
+
+  let cancelled = 0;
+  for (const post of posts) {
+    // Published posts are already out in the world; only future ones can be stopped.
+    if (!contentIds.has(post.contentId) || post.status === 'published') continue;
+    await runtime.store.updateScheduledPost(post.id, { status: 'cancelled' });
+    cancelled += 1;
+  }
+  await runtime.store.updateCampaign(campaignId, { status: 'ready' });
+
+  log.info('campaign paused', { campaignId, cancelled });
+  revalidatePath(`/brands/${brandId}/campaigns/${campaignId}`);
+  revalidatePath(`/brands/${brandId}/calendar`);
 }
 
 export async function updateCampaignStatus(brandId: string, campaignId: string, status: string) {

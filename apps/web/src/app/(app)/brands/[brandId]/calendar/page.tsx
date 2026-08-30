@@ -38,7 +38,19 @@ export default async function CalendarPage({ params }: { params: Promise<{ brand
         }
       />
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Weekday headings only make sense once the columns are weeks. */}
+      <div className="mb-2 hidden grid-cols-7 gap-3 lg:grid">
+        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((label) => (
+          <p key={label} className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">
+            {label}
+          </p>
+        ))}
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-7">
+        {/* Blank cells so the first day lands under its real weekday. */}
+        {Array.from({ length: (new Date(days[0] ?? start).getUTCDay() + 6) % 7 }).map((_, i) => (
+          <div key={`pad-${i}`} className="hidden lg:block" aria-hidden />
+        ))}
         {days.map((day) => {
           const dayPosts = byDay.get(day) ?? [];
           const isToday = day === dayKey(start);
