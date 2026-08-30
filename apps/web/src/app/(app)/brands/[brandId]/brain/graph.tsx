@@ -79,7 +79,9 @@ export function BrandGraph({ brain, channels }: { brain: BrandBrain; channels: s
     w: 232,
     h: 56,
     title: 'Knowledge',
-    lines: [`${brain.sourcePageCount} pages · ${brain.faqs.length} FAQs · ${brain.testimonials.length} quotes`],
+    lines: [
+      `${brain.sourcePageCount} ${brain.sourcePageCount === 1 ? 'page' : 'pages'} · ${brain.faqs.length} FAQs · ${brain.testimonials.length} quotes`,
+    ],
     side: 'bottom',
   });
 

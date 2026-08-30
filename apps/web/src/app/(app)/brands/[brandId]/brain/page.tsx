@@ -31,7 +31,7 @@ export default async function BrainPage({ params }: { params: Promise<{ brandId:
         title="Brand Brain"
         description={
           brand.websiteUrl
-            ? `Built from ${brain.sourcePageCount} pages on ${brand.websiteUrl}. Edit anything — your edits survive re-analysis.`
+            ? `Built from ${brain.sourcePageCount} ${brain.sourcePageCount === 1 ? 'page' : 'pages'} on ${brand.websiteUrl}. Edit anything — your edits survive re-analysis.`
             : 'Built from your Brand Builder answers. Edit anything — your edits are kept. Add a website any time to enrich it.'
         }
         action={

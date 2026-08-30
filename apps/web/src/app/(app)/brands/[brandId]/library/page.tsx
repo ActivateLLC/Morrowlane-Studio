@@ -29,7 +29,7 @@ export default async function LibraryPage({
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Content library" description={`${total} pieces of content, all reusable.`} />
+      <PageHeader title="Content library" description={`${total} ${total === 1 ? 'piece' : 'pieces'} of content, all reusable.`} />
 
       <form className="grid gap-3 sm:grid-cols-[1fr_170px_170px_150px_auto]">
         <Input aria-label="Search content" name="q" placeholder="Search content…" defaultValue={query['q'] ?? ''} />
