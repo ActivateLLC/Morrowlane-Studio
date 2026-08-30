@@ -119,7 +119,7 @@ export function BrandSidebar({
       </header>
 
       {open ? (
-        <div className="fixed inset-0 top-14 z-30 flex flex-col bg-shell lg:hidden">
+        <div className="anim-drawer fixed inset-0 top-14 z-30 flex flex-col bg-shell lg:hidden">
           <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 pt-2">
             <NavList brandId={brandId} pathname={pathname} onNavigate={() => setOpen(false)} itemClassName="py-3 text-[15px]" />
           </nav>

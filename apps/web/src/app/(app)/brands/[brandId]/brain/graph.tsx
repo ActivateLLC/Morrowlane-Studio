@@ -104,7 +104,7 @@ export function BrandGraph({ brain, channels }: { brain: BrandBrain; channels: s
     <div className="overflow-x-auto rounded-xl border border-line bg-surface bg-dotgrid shadow-card [background-size:18px_18px]">
       <svg viewBox={`0 0 ${W} ${H}`} className="min-w-[760px]" role="img" aria-label="Brand Brain graph">
         {nodes.map((node, index) => (
-          <path key={`edge-${index}`} d={edgePath(node)} fill="none" stroke="#c3cfc9" strokeWidth="1.3" />
+          <path key={`edge-${index}`} d={edgePath(node)} fill="none" stroke="#c3cfc9" strokeWidth="1.3" className="anim-edge" />
         ))}
 
         {nodes.map((node, index) => (

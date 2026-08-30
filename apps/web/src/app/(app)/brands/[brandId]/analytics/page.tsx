@@ -1,9 +1,10 @@
-import { conversionRates, performanceByContent, summariseFunnel } from '@morrowlane/analytics';
-import { ATTRIBUTION_STAGES } from '@morrowlane/shared';
+import { performanceByContent, summariseFunnel } from '@morrowlane/analytics';
+import { CHANNELS } from '@morrowlane/shared';
 import { Badge, Button, Card, CardBody, CardHeader, EmptyState, PageHeader, Stat } from '@morrowlane/ui';
 import { applyInsight, recomputeInsights, unapplyInsight } from '@/server/actions';
 import { requireBrand } from '@/server/session';
 import { formatNumber, statusLabel } from '@/lib/format';
+import { ChannelBars, FunnelChart } from '@/components/charts';
 
 /**
  * The funnel from the spec: Content → Engagement → Visit → Lead → Customer → Revenue.
@@ -22,7 +23,6 @@ export default async function AnalyticsPage({ params }: { params: Promise<{ bran
   ]);
 
   const totals = summariseFunnel(events);
-  const rates = conversionRates(totals);
   const performance = performanceByContent(content.items, posts, events)
     .filter((row) => row.totals.impression > 0)
     .sort((a, b) => b.qualifiedVisits - a.qualifiedVisits);
@@ -94,31 +94,52 @@ export default async function AnalyticsPage({ params }: { params: Promise<{ bran
         )}
       </section>
 
-      <Card>
-        <CardHeader>
-          <h2 className="text-sm font-semibold text-ink">The funnel</h2>
-        </CardHeader>
-        <CardBody>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-7">
-            {ATTRIBUTION_STAGES.map((stage) => (
-              <Stat
-                key={stage}
-                label={statusLabel(stage)}
-                value={stage === 'revenue' ? `$${formatNumber(totals[stage])}` : formatNumber(totals[stage])}
-              />
-            ))}
-          </div>
-          <div className="mt-4 flex flex-wrap gap-3">
-            {rates
-              .filter((rate) => rate.rate > 0)
-              .map((rate) => (
-                <Badge key={rate.to} tone="neutral">
-                  {statusLabel(rate.from)} → {statusLabel(rate.to)}: {(rate.rate * 100).toFixed(1)}%
-                </Badge>
-              ))}
-          </div>
-        </CardBody>
-      </Card>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <Stat label="Impressions" value={formatNumber(totals.impression)} />
+        <Stat label="Qualified visits" value={formatNumber(Math.min(totals.visit, totals.click))} />
+        <Stat label="Leads" value={formatNumber(totals.lead)} />
+        {/* Revenue is currency, not a count — it never shares the funnel's axis. */}
+        <Stat label="Revenue" value={`$${formatNumber(totals.revenue)}`} />
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <h2 className="text-sm font-semibold text-ink">The funnel</h2>
+            <p className="mt-0.5 text-[12px] text-ink-faint">Each stage as a share of the one before it.</p>
+          </CardHeader>
+          <CardBody>
+            <FunnelChart
+              stages={[
+                { label: 'Impressions', value: totals.impression },
+                { label: 'Engagements', value: totals.engagement },
+                { label: 'Clicks', value: totals.click },
+                { label: 'Visits', value: totals.visit },
+                { label: 'Leads', value: totals.lead },
+                { label: 'Customers', value: totals.customer },
+              ]}
+            />
+          </CardBody>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <h2 className="text-sm font-semibold text-ink">Qualified visits by channel</h2>
+            <p className="mt-0.5 text-[12px] text-ink-faint">Where the traffic that converts comes from.</p>
+          </CardHeader>
+          <CardBody>
+            <ChannelBars
+              unit="qualified visits"
+              data={CHANNELS.map((channel) => ({
+                label: channel.replace('_', ' '),
+                value: performance
+                  .filter((row) => row.channel === channel)
+                  .reduce((sum, row) => sum + row.qualifiedVisits, 0),
+              })).filter((datum) => datum.value > 0)}
+            />
+          </CardBody>
+        </Card>
+      </div>
 
       <Card>
         <CardHeader>

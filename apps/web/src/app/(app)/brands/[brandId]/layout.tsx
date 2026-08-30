@@ -28,7 +28,7 @@ export default async function BrandLayout({
           </div>
         ) : null}
         {/* Bottom padding clears the phone tab bar; gone on desktop. */}
-        <main className="mx-auto max-w-5xl px-4 pb-24 pt-6 lg:px-6 lg:py-8">{children}</main>
+        <main className="anim-rise mx-auto max-w-5xl px-4 pb-24 pt-6 lg:px-6 lg:py-8">{children}</main>
       </div>
     </div>
   );
