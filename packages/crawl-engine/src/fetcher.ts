@@ -1,6 +1,9 @@
 import { createLogger } from '@morrowlane/shared';
+import { urlIsPublic } from './guard.js';
 
 const log = createLogger('crawl-engine:fetcher');
+
+const MAX_REDIRECTS = 5;
 
 export interface FetchedDocument {
   url: string;
@@ -52,11 +55,33 @@ export function createHttpFetcher(options: HttpFetcherOptions = {}): Fetcher {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), timeoutMs);
       try {
-        const response = await fetch(url, {
-          redirect: 'follow',
-          signal: controller.signal,
-          headers: { 'user-agent': userAgent, accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' },
-        });
+        // Redirects are followed manually so each hop is re-checked against the SSRF
+        // guard — a public URL can 302 to an internal address otherwise.
+        let current = url;
+        let response: Response | null = null;
+        for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
+          if (!(await urlIsPublic(current))) {
+            log.debug('refused non-public target', { url, hop: current });
+            return null;
+          }
+          const hopResponse = await fetch(current, {
+            redirect: 'manual',
+            signal: controller.signal,
+            headers: { 'user-agent': userAgent, accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' },
+          });
+          if (hopResponse.status >= 300 && hopResponse.status < 400 && hopResponse.headers.has('location')) {
+            const next = new URL(hopResponse.headers.get('location')!, current).toString();
+            await hopResponse.body?.cancel().catch(() => {});
+            current = next;
+            continue;
+          }
+          response = hopResponse;
+          break;
+        }
+        if (!response) {
+          log.debug('too many redirects', { url });
+          return null;
+        }
         const contentType = response.headers.get('content-type') ?? '';
         if (!response.ok) {
           log.debug('non-ok response', { url, status: response.status });

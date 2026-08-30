@@ -12,12 +12,42 @@ Then: CRAWLER_SERVICE_URL=http://localhost:8020 in the worker's environment.
 
 from __future__ import annotations
 
-from fastapi import FastAPI
+import ipaddress
+import socket
+
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, HttpUrl
 
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CacheMode, CrawlerRunConfig
 
 app = FastAPI(title="Morrowlane crawler", version="0.1.0")
+
+
+def _host_is_public(hostname: str) -> bool:
+    """Reject private/loopback/link-local targets so the crawler is not an SSRF proxy.
+
+    Mirrors the Node fetcher's guard: resolve the host and require every address to be
+    global. A headless browser fetch of an internal URL is worse than a plain one, so
+    this must gate the same user-supplied URLs.
+    """
+    host = (hostname or "").strip("[]").lower()
+    if not host or host == "localhost" or host.endswith(".localhost") or host.endswith(".internal"):
+        return False
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except OSError:
+        return False
+    if not infos:
+        return False
+    for info in infos:
+        addr = info[4][0].split("%")[0]  # drop any zone id
+        try:
+            ip = ipaddress.ip_address(addr)
+        except ValueError:
+            return False
+        if not ip.is_global or ip.is_multicast:
+            return False
+    return True
 
 _browser_config = BrowserConfig(headless=True, verbose=False)
 _run_config = CrawlerRunConfig(
@@ -46,6 +76,8 @@ async def healthz() -> dict[str, bool]:
 
 @app.post("/fetch", response_model=FetchResponse)
 async def fetch(request: FetchRequest) -> FetchResponse:
+    if not _host_is_public(request.url.host or ""):
+        raise HTTPException(status_code=400, detail="Target host is not publicly routable.")
     async with AsyncWebCrawler(config=_browser_config) as crawler:
         result = await crawler.arun(url=str(request.url), config=_run_config)
 

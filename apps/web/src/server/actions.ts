@@ -285,6 +285,8 @@ export async function reschedulePost(brandId: string, postId: string, scheduledF
 
 export async function cancelPost(brandId: string, postId: string) {
   const { runtime } = await requireBrand(brandId);
+  const post = await runtime.store.getScheduledPost(postId);
+  if (!post || post.brandId !== brandId) throw new ValidationError('That post is not on this calendar.');
   await runtime.store.updateScheduledPost(postId, { status: 'cancelled' });
   revalidatePath(`/brands/${brandId}/calendar`);
 }
@@ -292,7 +294,7 @@ export async function cancelPost(brandId: string, postId: string) {
 export async function publishNow(brandId: string, postId: string) {
   const { organizationId, runtime } = await requireBrand(brandId);
   const post = await runtime.store.getScheduledPost(postId);
-  if (!post) throw new ValidationError('That post is not on this calendar.');
+  if (!post || post.brandId !== brandId) throw new ValidationError('That post is not on this calendar.');
 
   await runtime.store.updateScheduledPost(postId, { status: 'publishing' });
   await enqueueAndMaybeRun({
@@ -309,7 +311,7 @@ export async function publishNow(brandId: string, postId: string) {
 export async function approveContent(brandId: string, contentId: string) {
   const { runtime } = await requireBrand(brandId);
   const item = await runtime.store.getContent(contentId);
-  if (!item) throw new ValidationError('That content no longer exists.');
+  if (!item || item.brandId !== brandId) throw new ValidationError('That content is not in this brand.');
 
   if (item.violations.some((violation) => violation.severity === 'error')) {
     throw new ValidationError('This breaks a brand rule. Edit it before approving.');
@@ -322,7 +324,7 @@ export async function updateContentBody(brandId: string, contentId: string, body
   const { runtime } = await requireBrand(brandId);
   const brain = await runtime.store.getBrain(brandId);
   const item = await runtime.store.getContent(contentId);
-  if (!item) throw new ValidationError('That content no longer exists.');
+  if (!item || item.brandId !== brandId) throw new ValidationError('That content is not in this brand.');
 
   // Re-check rules on every edit: a human can introduce a violation just as easily.
   const { checkRules } = await import('@morrowlane/content-engine');
@@ -350,7 +352,7 @@ export async function updateContentBody(brandId: string, contentId: string, body
 export async function scheduleContentItem(brandId: string, contentId: string, scheduledFor: string) {
   const { runtime } = await requireBrand(brandId);
   const item = await runtime.store.getContent(contentId);
-  if (!item) throw new ValidationError('That content no longer exists.');
+  if (!item || item.brandId !== brandId) throw new ValidationError('That content is not in this brand.');
   if (item.violations.some((v) => v.severity === 'error')) {
     throw new ValidationError('This breaks a brand rule and cannot be scheduled.');
   }
@@ -382,7 +384,7 @@ export async function scheduleContentItem(brandId: string, contentId: string, sc
 export async function duplicateContent(brandId: string, contentId: string) {
   const { runtime } = await requireBrand(brandId);
   const item = await runtime.store.getContent(contentId);
-  if (!item) throw new ValidationError('That content no longer exists.');
+  if (!item || item.brandId !== brandId) throw new ValidationError('That content is not in this brand.');
 
   const { newId, nowIso } = await import('@morrowlane/shared');
   const copy = {
@@ -403,7 +405,7 @@ export async function duplicateContent(brandId: string, contentId: string) {
 export async function generateVariants(brandId: string, contentId: string) {
   const { organizationId, runtime } = await requireBrand(brandId);
   const item = await runtime.store.getContent(contentId);
-  if (!item) throw new ValidationError('That content no longer exists.');
+  if (!item || item.brandId !== brandId) throw new ValidationError('That content is not in this brand.');
 
   await enqueueAndMaybeRun({
     organizationId,
@@ -427,7 +429,7 @@ export async function generateVariants(brandId: string, contentId: string) {
 export async function renderMedia(brandId: string, contentId: string) {
   const { organizationId, runtime } = await requireBrand(brandId);
   const item = await runtime.store.getContent(contentId);
-  if (!item) throw new ValidationError('That content no longer exists.');
+  if (!item || item.brandId !== brandId) throw new ValidationError('That content is not in this brand.');
 
   await enqueueAndMaybeRun({
     organizationId,
@@ -440,6 +442,8 @@ export async function renderMedia(brandId: string, contentId: string) {
 
 export async function deleteContentItem(brandId: string, contentId: string) {
   const { runtime } = await requireBrand(brandId);
+  const item = await runtime.store.getContent(contentId);
+  if (!item || item.brandId !== brandId) throw new ValidationError('That content is not in this brand.');
   await runtime.store.deleteContent(contentId);
   revalidatePath(`/brands/${brandId}/library`);
 }
@@ -467,18 +471,24 @@ export async function addCompetitor(brandId: string, formData: FormData) {
 
 export async function removeCompetitor(brandId: string, competitorId: string) {
   const { runtime } = await requireBrand(brandId);
+  const owned = (await runtime.store.listCompetitors(brandId)).some((c) => c.id === competitorId);
+  if (!owned) throw new ValidationError('That competitor is not tracked by this brand.');
   await runtime.store.deleteCompetitor(competitorId);
   revalidatePath(`/brands/${brandId}/intelligence`);
 }
 
 export async function applyInsight(brandId: string, insightId: string) {
   const { runtime } = await requireBrand(brandId);
+  const owned = (await runtime.store.listInsights(brandId)).some((i) => i.id === insightId);
+  if (!owned) throw new ValidationError('That insight is not in this brand.');
   await runtime.store.updateInsight(insightId, { applied: true });
   revalidatePath(`/brands/${brandId}/analytics`);
 }
 
 export async function unapplyInsight(brandId: string, insightId: string) {
   const { runtime } = await requireBrand(brandId);
+  const owned = (await runtime.store.listInsights(brandId)).some((i) => i.id === insightId);
+  if (!owned) throw new ValidationError('That insight is not in this brand.');
   await runtime.store.updateInsight(insightId, { applied: false });
   revalidatePath(`/brands/${brandId}/analytics`);
 }
@@ -564,6 +574,8 @@ export async function connectDemoAccount(brandId: string, channel: string) {
 
 export async function disconnectAccount(brandId: string, connectionId: string) {
   const { runtime } = await requireBrand(brandId);
+  const owned = (await runtime.store.listConnections(brandId)).some((c) => c.id === connectionId);
+  if (!owned) throw new ValidationError('That connection is not in this brand.');
   await runtime.store.deleteConnection(connectionId);
   revalidatePath(`/brands/${brandId}/connections`);
 }
