@@ -1,0 +1,19 @@
+{
+  "name": "@morrowlane/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Capacitor wrapper that ships the Morrowlane web app to the App Store and Play Store.",
+  "scripts": {
+    "add:ios": "cap add ios",
+    "add:android": "cap add android",
+    "sync": "cap sync",
+    "open:ios": "cap open ios",
+    "open:android": "cap open android"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^6.2.0",
+    "@capacitor/cli": "^6.2.0",
+    "@capacitor/core": "^6.2.0",
+    "@capacitor/ios": "^6.2.0"
+  }
+}

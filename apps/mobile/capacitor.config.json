@@ -1,0 +1,16 @@
+{
+  "appId": "com.morrowlane.studio",
+  "appName": "Morrowlane Studio",
+  "webDir": "www",
+  "server": {
+    "url": "https://morrowlane-studio.vercel.app",
+    "cleartext": false
+  },
+  "backgroundColor": "#0c1512",
+  "ios": {
+    "contentInset": "always"
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}

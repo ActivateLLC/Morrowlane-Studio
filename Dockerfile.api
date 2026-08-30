@@ -1,0 +1,15 @@
+# Morrowlane ingestion API — POST /v1/events into the attribution graph.
+# Railway: create a service from this repo and set RAILWAY_DOCKERFILE_PATH=Dockerfile.api
+FROM node:22-alpine
+WORKDIR /app
+RUN corepack enable
+
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml tsconfig.base.json ./
+COPY packages ./packages
+COPY apps/api ./apps/api
+RUN pnpm install --frozen-lockfile --ignore-scripts
+
+# Railway injects PORT; the server reads it. Also set MORROWLANE_INGEST_KEY,
+# SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
+EXPOSE 4000
+CMD ["pnpm", "--filter", "@morrowlane/api", "start"]

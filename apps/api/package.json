@@ -1,0 +1,20 @@
+{
+  "name": "@morrowlane/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/main.ts",
+    "start": "tsx src/main.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@morrowlane/agents": "workspace:*",
+    "@morrowlane/analytics": "workspace:*",
+    "@morrowlane/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "tsx": "^4.19.2"
+  }
+}

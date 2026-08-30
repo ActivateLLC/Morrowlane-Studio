@@ -1,0 +1,23 @@
+{
+  "name": "morrowlane-studio",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.33.0",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "pnpm -r --filter \"./packages/*\" build && pnpm --filter @morrowlane/web build",
+    "build:packages": "pnpm -r --filter \"./packages/*\" build",
+    "dev": "pnpm --filter @morrowlane/web dev",
+    "dev:api": "pnpm --filter @morrowlane/api dev",
+    "dev:worker": "pnpm --filter @morrowlane/worker dev",
+    "typecheck": "pnpm -r typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "pnpm -r --if-present lint"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

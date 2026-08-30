@@ -1,0 +1,10 @@
+{
+  "name": "@morrowlane/video-service",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Remotion rendering service. Install remotion deps here when enabling video.",
+  "scripts": {
+    "render": "remotion render src/index.ts ShortVideo out/video.mp4",
+    "serve": "node server.mjs"
+  }
+}
