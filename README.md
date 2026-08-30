@@ -23,7 +23,7 @@ qualified traffic than quote graphics" — with the Apply button that changes fu
 generations).
 
 ```bash
-pnpm test         # 194 tests: the whole product, engine by engine, offline
+pnpm test         # 217 tests: the whole product, engine by engine, offline
 pnpm build        # packages + web app
 pnpm dev:worker   # background worker (optional locally; jobs also run inline)
 pnpm dev:api      # attribution ingestion API on :4000
