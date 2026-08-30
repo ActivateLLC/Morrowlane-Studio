@@ -12,7 +12,11 @@ export interface ImageRenderRequest {
   contentId: string;
   /** ComfyUI workflow template name under services/creative/workflows. */
   workflow: string;
+  /** Art direction for diffusion renderers: what the image should depict. */
   prompt: string;
+  /** The slide's actual words, for typographic renderers that set the text itself. */
+  heading: string | null;
+  message: string;
   negativePrompt: string;
   width: number;
   height: number;
@@ -88,6 +92,8 @@ export function buildRenderRequests(item: ContentItem, brain: BrandBrain): Rende
     contentId: item.id,
     workflow: 'branded-image',
     prompt: [segment.visualDirection ?? truncate(segment.body, 160), styleWords].filter(Boolean).join('. '),
+    heading: segment.heading,
+    message: truncate(segment.body, 300),
     negativePrompt: 'text artifacts, watermark, extra logos, distorted hands',
     width,
     height,

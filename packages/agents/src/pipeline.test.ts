@@ -1,4 +1,5 @@
 import { LOCAL_COMPOSERS, createGateway } from '@morrowlane/content-engine';
+import { createDataUrlStorage, createSvgRenderer } from '@morrowlane/creative-engine';
 import { ORCA_ORIGIN, ORCA_SITE, createStaticFetcher } from '@morrowlane/crawl-engine';
 import { createMemoryStore } from '@morrowlane/database';
 import { createSocialRegistry } from '@morrowlane/social';
@@ -15,6 +16,8 @@ function makeRuntime(): Runtime {
     gateway: createGateway({ composers: { ...LOCAL_COMPOSERS, ...ALL_COMPOSERS } }),
     social: createSocialRegistry({ useMocks: true }),
     fetcher: createStaticFetcher(ORCA_SITE),
+    imageRenderer: createSvgRenderer(),
+    mediaStorage: createDataUrlStorage(),
     demoMode: true,
   };
 }
@@ -205,6 +208,41 @@ describe('the whole product, end to end', () => {
     expect(job.result?.['collected']).toBe(1);
     expect((await runtime.store.listEvents(brandId)).length).toBeGreaterThan(before);
     expect((await runtime.store.listMetrics(brandId))[0]?.impressions).toBeGreaterThan(0);
+  });
+
+  it('renders branded graphics for an image format and attaches them', async () => {
+    await runtime.store.enqueueJob({
+      organizationId,
+      brandId,
+      kind: 'generate_content',
+      payload: { format: 'instagram_carousel', count: 1 },
+    });
+    await runNextJob(runtime);
+    const { items } = await runtime.store.queryContent({ brandId, format: 'instagram_carousel', limit: 1 });
+    const carousel = items[0]!;
+
+    await runtime.store.enqueueJob({
+      organizationId,
+      brandId,
+      kind: 'render_media',
+      payload: { contentId: carousel.id },
+    });
+    const job = await runNextJob(runtime);
+
+    expect(job.status).toBe('succeeded');
+    // One creative per slide.
+    expect(job.result?.['rendered']).toBe(carousel.segments.length);
+
+    const updated = await runtime.store.getContent(carousel.id);
+    expect(updated?.mediaAssetIds).toHaveLength(carousel.segments.length);
+
+    const media = await runtime.store.listMedia(brandId);
+    const asset = media.find((candidate) => candidate.id === updated!.mediaAssetIds[0]);
+    expect(asset?.renderer).toBe('svg');
+    expect(asset?.url.startsWith('data:image/svg+xml;base64,')).toBe(true);
+    // The rendered card is real brand output: it carries the brand colour.
+    const svg = Buffer.from(asset!.url.split(',')[1]!, 'base64').toString('utf8');
+    expect(svg).toContain('#1b6ef3');
   });
 
   it('reports a failure honestly rather than silently succeeding', async () => {

@@ -2,11 +2,13 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { summariseFunnel } from '@morrowlane/analytics';
 import { Badge, Button, Card, CardBody, CardHeader, Stat } from '@morrowlane/ui';
+import { formatProfile } from '@morrowlane/shared';
 import {
   approveContent,
   deleteContentItem,
   duplicateContent,
   generateVariants,
+  renderMedia,
   scheduleContentItem,
   updateContentBody,
 } from '@/server/actions';
@@ -40,6 +42,8 @@ export default async function ContentDetailPage({
   ]);
 
   const itemPosts = posts.filter((post) => post.contentId === item.id);
+  const media = (await store.listMedia(brandId)).filter((asset) => item.mediaAssetIds.includes(asset.id));
+  const isVisualFormat = formatProfile(item.format).medium === 'image';
   const totals = summariseFunnel(events.filter((event) => event.contentId === item.id));
   const variants = siblings.items.filter((candidate) => candidate.lineage.parentContentId === item.id);
 
@@ -117,6 +121,13 @@ export default async function ContentDetailPage({
           ← Library
         </Link>
         <div className="flex flex-wrap gap-2">
+          {isVisualFormat ? (
+            <form action={renderMedia.bind(null, brandId, contentId)}>
+              <Button type="submit" size="sm">
+                {media.length > 0 ? 'Re-render graphics' : 'Render graphics'}
+              </Button>
+            </form>
+          ) : null}
           <form action={generateVariants.bind(null, brandId, contentId)}>
             <Button type="submit" variant="secondary" size="sm">
               Generate 3 variants
@@ -138,6 +149,31 @@ export default async function ContentDetailPage({
         schedule={scheduleContentItem.bind(null, brandId, item.id)}
         defaultOpen
       />
+
+      {media.length > 0 ? (
+        <Card>
+          <CardHeader className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-ink">Creatives</h2>
+            <p className="text-[12px] text-ink-faint">
+              rendered by {media[0]!.renderer === 'svg' ? 'the branded composer' : media[0]!.renderer}
+            </p>
+          </CardHeader>
+          <CardBody>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+              {media.map((asset, index) => (
+                <a key={asset.id} href={asset.url} target="_blank" rel="noreferrer" className="group">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={asset.url}
+                    alt={`Creative ${index + 1}`}
+                    className="aspect-[4/5] w-full rounded-lg border border-line object-cover transition-shadow group-hover:shadow-lifted"
+                  />
+                </a>
+              ))}
+            </div>
+          </CardBody>
+        </Card>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>

@@ -1,4 +1,12 @@
 import { createGateway, LOCAL_COMPOSERS, type AiGateway } from '@morrowlane/content-engine';
+import {
+  createDataUrlStorage,
+  createHuggingFaceRenderer,
+  createSvgRenderer,
+  type ImageRenderer,
+  type MediaStorage,
+} from '@morrowlane/creative-engine';
+import { createSupabaseMediaStorage } from '@morrowlane/database';
 import { createHttpFetcher, createStaticFetcher, ORCA_SITE, type Fetcher } from '@morrowlane/crawl-engine';
 import { createMemoryStore, createSupabaseStore, type DataStore } from '@morrowlane/database';
 import { createSocialRegistry, type SocialRegistry } from '@morrowlane/social';
@@ -12,6 +20,8 @@ export interface Runtime extends HandlerDeps {
   gateway: AiGateway;
   social: SocialRegistry;
   fetcher: Fetcher;
+  imageRenderer: ImageRenderer;
+  mediaStorage: MediaStorage;
   /** True when nothing external is configured and the demo path is active. */
   readonly demoMode: boolean;
 }
@@ -37,14 +47,23 @@ export function createRuntime(overrides: Partial<Runtime> = {}): Runtime {
     // The demo brand is served from a fixture so onboarding works with no network.
     (process.env['MORROWLANE_DEMO_FIXTURE'] === '1' ? createStaticFetcher(ORCA_SITE) : createHttpFetcher());
 
+  // Real diffusion imagery when a Hugging Face token exists; otherwise the branded
+  // SVG composer, so image formats always produce a usable creative.
+  const huggingFace = createHuggingFaceRenderer();
+  const imageRenderer = overrides.imageRenderer ?? (huggingFace.available ? huggingFace : createSvgRenderer());
+  const mediaStorage =
+    overrides.mediaStorage ?? (hasSupabase ? createSupabaseMediaStorage() : createDataUrlStorage());
+
   log.info('runtime ready', {
     store: hasSupabase ? 'supabase' : 'memory',
     ai: gateway.providerName,
+    renderer: imageRenderer.name,
+    mediaStorage: mediaStorage.name,
     social: social.available().length,
     demoMode,
   });
 
-  return { store, gateway, social, fetcher, demoMode };
+  return { store, gateway, social, fetcher, imageRenderer, mediaStorage, demoMode };
 }
 
 /** Process-wide runtime. Next.js route handlers reuse one instance per server. */

@@ -423,6 +423,21 @@ export async function generateVariants(brandId: string, contentId: string) {
   revalidatePath(`/brands/${brandId}/library/${contentId}`);
 }
 
+/** Renders the creatives for an image-format piece: slides, quote cards, infographics. */
+export async function renderMedia(brandId: string, contentId: string) {
+  const { organizationId, runtime } = await requireBrand(brandId);
+  const item = await runtime.store.getContent(contentId);
+  if (!item) throw new ValidationError('That content no longer exists.');
+
+  await enqueueAndMaybeRun({
+    organizationId,
+    brandId,
+    kind: 'render_media',
+    payload: { contentId },
+  });
+  revalidatePath(`/brands/${brandId}/library/${contentId}`);
+}
+
 export async function deleteContentItem(brandId: string, contentId: string) {
   const { runtime } = await requireBrand(brandId);
   await runtime.store.deleteContent(contentId);

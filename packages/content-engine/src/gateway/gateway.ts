@@ -1,6 +1,7 @@
 import { createLogger } from '@morrowlane/shared';
 import type { z } from 'zod';
 import { createAnthropicProvider } from './anthropic.js';
+import { createHuggingFaceProvider } from './huggingface.js';
 import { extractJson } from './json.js';
 import { createLocalProvider, type LocalComposer } from './local.js';
 import { createOpenAiProvider } from './openai.js';
@@ -36,7 +37,10 @@ export function createGateway(options: GatewayOptions = {}): AiGateway {
   const local = createLocalProvider({ composers: options.composers });
   const configured =
     options.providers ??
-    orderByPreference([createAnthropicProvider(), createOpenAiProvider()], process.env.AI_PROVIDER);
+    orderByPreference(
+      [createAnthropicProvider(), createOpenAiProvider(), createHuggingFaceProvider()],
+      process.env.AI_PROVIDER,
+    );
 
   const chain = [...configured.filter((p) => p.available), local];
   const primary = chain[0]!;

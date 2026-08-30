@@ -262,7 +262,7 @@ export interface MediaAsset {
   width: number | null;
   height: number | null;
   durationSeconds: number | null;
-  renderer: 'comfyui' | 'remotion' | 'upload' | 'source_site';
+  renderer: 'comfyui' | 'remotion' | 'huggingface' | 'svg' | 'upload' | 'source_site';
   createdAt: string;
 }
 

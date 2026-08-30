@@ -31,7 +31,8 @@
     "@morrowlane/crawl-engine": "workspace:*",
     "@morrowlane/database": "workspace:*",
     "@morrowlane/social": "workspace:*",
-    "@morrowlane/analytics": "workspace:*"
+    "@morrowlane/analytics": "workspace:*",
+    "@morrowlane/creative-engine": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.7.2"

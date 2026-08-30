@@ -9,11 +9,12 @@ import {
 } from '@morrowlane/campaign-engine';
 import { generateContent, remixUrl, type AiGateway } from '@morrowlane/content-engine';
 import { crawlSinglePage, createHttpFetcher, type Fetcher } from '@morrowlane/crawl-engine';
+import { buildRenderRequests, type ImageRenderer, type MediaStorage } from '@morrowlane/creative-engine';
 import type { DataStore } from '@morrowlane/database';
 import { applyInsights, computeInsights, performanceByContent, recordEvent } from '@morrowlane/analytics';
 import { publishPost, type SocialRegistry } from '@morrowlane/social';
 import type { Channel, Job, JobKind } from '@morrowlane/shared';
-import { NotFoundError, createLogger, isChannel, isContentFormat, normalizeUrl, nowIso } from '@morrowlane/shared';
+import { NotFoundError, createLogger, isChannel, isContentFormat, newId, normalizeUrl, nowIso } from '@morrowlane/shared';
 import type { StepContext } from './graph.js';
 import { runOnboarding } from './onboarding.js';
 
@@ -23,6 +24,8 @@ export interface HandlerDeps {
   store: DataStore;
   gateway: AiGateway;
   social: SocialRegistry;
+  imageRenderer: ImageRenderer;
+  mediaStorage: MediaStorage;
   fetcher?: Fetcher;
 }
 
@@ -218,13 +221,60 @@ export const HANDLERS: Record<JobKind, JobHandler> = {
     };
   },
 
-  async render_media(job, _deps) {
-    // Creative rendering runs in services/creative (ComfyUI) and services/video (Remotion).
-    // The handler exists so the queue shape is complete; it reports honestly until wired.
-    log.info('render_media requested', { jobId: job.id });
-    throw new Error(
-      'Media rendering is not wired up yet. Start services/creative and set CREATIVE_SERVICE_URL to enable it.',
-    );
+  async render_media(job, deps, context) {
+    const brandId = job.brandId;
+    if (!brandId) throw new Error('render_media requires a brand.');
+    const contentId = str(job.payload, 'contentId');
+    if (!contentId) throw new Error('render_media requires a content item.');
+
+    const item = await deps.store.getContent(contentId);
+    if (!item) throw new NotFoundError('Content');
+    const brain = await requireBrain(deps.store, brandId);
+
+    const requests = buildRenderRequests(item, brain).filter((request) => request.kind === 'image');
+    if (requests.length === 0) {
+      throw new Error(
+        item.segments.length > 0 || item.hook
+          ? 'This format renders as video, which runs through services/video (Remotion) and is not wired yet.'
+          : 'This content has nothing to render.',
+      );
+    }
+
+    const assetIds: string[] = [];
+    for (const [index, request] of requests.entries()) {
+      await context.progress(
+        0.1 + (index / requests.length) * 0.8,
+        `Rendering ${index + 1} of ${requests.length}`,
+      );
+      const image = await deps.imageRenderer.render(request);
+      const { url } = await deps.mediaStorage.put({
+        bytes: image.bytes,
+        contentType: image.contentType,
+        keyHint: `${brandId}/${contentId}`,
+      });
+
+      const [asset] = await deps.store.saveMedia([
+        {
+          id: newId('asset'),
+          brandId,
+          kind: 'image',
+          url,
+          thumbnailUrl: null,
+          prompt: request.prompt,
+          width: image.width,
+          height: image.height,
+          durationSeconds: null,
+          renderer: deps.imageRenderer.name,
+          createdAt: nowIso(),
+        },
+      ]);
+      if (asset) assetIds.push(asset.id);
+    }
+
+    await deps.store.updateContent(contentId, {
+      mediaAssetIds: [...item.mediaAssetIds, ...assetIds],
+    });
+    return { rendered: assetIds.length, renderer: deps.imageRenderer.name, assetIds };
   },
 
   async publish_post(job, deps, context) {
