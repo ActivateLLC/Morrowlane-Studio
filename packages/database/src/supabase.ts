@@ -205,6 +205,7 @@ export function createSupabaseStore(options: { url?: string; serviceRoleKey?: st
     async updateBrand(id, patch) {
       const row = await updateRow('brands', id, {
         ...(patch.name !== undefined ? { name: patch.name } : {}),
+        ...(patch.websiteUrl !== undefined ? { website_url: patch.websiteUrl } : {}),
         ...(patch.status !== undefined ? { status: patch.status } : {}),
         ...(patch.statusDetail !== undefined ? { status_detail: patch.statusDetail } : {}),
         updated_at: nowIso(),

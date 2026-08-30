@@ -3,11 +3,14 @@ import { Badge, Button, Card, CardBody, Input, PageHeader } from '@morrowlane/ui
 import { remix } from '@/server/actions';
 import { requireBrand } from '@/server/session';
 import { STATUS_TONES, statusLabel } from '@/lib/format';
+import { SetupNeeded } from '@/components/setup-needed';
 
 /** The flagship: one page in, an entire distribution tree out. */
 export default async function RemixPage({ params }: { params: Promise<{ brandId: string }> }) {
   const { brandId } = await params;
   const { runtime } = await requireBrand(brandId);
+  const brain = await runtime.store.getBrain(brandId);
+  if (!brain) return <SetupNeeded brandId={brandId} />;
 
   const pages = await runtime.store.listPages(brandId);
   const promotable = pages

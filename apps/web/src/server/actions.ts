@@ -158,6 +158,26 @@ export async function addBrand(formData: FormData) {
   redirect(`/brands/${brand.id}`);
 }
 
+/** A failed analysis is often just the wrong address. Update it and try again. */
+export async function retryWithNewAddress(brandId: string, formData: FormData) {
+  const { organizationId, runtime } = await requireBrandWrite(brandId);
+  const raw = String(formData.get('websiteUrl') ?? '');
+  const websiteUrl = normalizeUrl(raw);
+  if (!websiteUrl) throw new ValidationError(`"${raw}" does not look like a website address.`);
+
+  await runtime.store.updateBrand(brandId, { websiteUrl, status: 'draft', statusDetail: null });
+  await enqueueAndMaybeRun({ organizationId, brandId, kind: 'crawl_site', payload: { websiteUrl } });
+  revalidatePath(`/brands/${brandId}`);
+}
+
+/** The way out of a dead brand — a failed crawl was previously permanent. */
+export async function deleteBrandAction(brandId: string) {
+  const { runtime } = await requireBrandAdmin(brandId);
+  await runtime.store.deleteBrand(brandId);
+  revalidatePath('/');
+  redirect('/?all=1');
+}
+
 export async function reanalyzeBrand(brandId: string) {
   const { brand, organizationId } = await requireBrandWrite(brandId);
   await enqueueAndMaybeRun({

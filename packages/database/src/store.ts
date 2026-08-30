@@ -70,7 +70,7 @@ export interface DataStore {
   createBrand(input: { organizationId: string; name: string; websiteUrl: string }): Promise<Brand>;
   getBrand(id: string): Promise<Brand | null>;
   listBrands(organizationId: string): Promise<Brand[]>;
-  updateBrand(id: string, patch: Partial<Pick<Brand, 'name' | 'status' | 'statusDetail'>>): Promise<Brand>;
+  updateBrand(id: string, patch: Partial<Pick<Brand, 'name' | 'websiteUrl' | 'status' | 'statusDetail'>>): Promise<Brand>;
   deleteBrand(id: string): Promise<void>;
 
   /* Website intelligence */

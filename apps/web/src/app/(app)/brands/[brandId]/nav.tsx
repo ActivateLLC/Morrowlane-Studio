@@ -175,6 +175,13 @@ export function BrandSidebar({
           </nav>
           <div className="space-y-0.5 border-t border-shell-line px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
             <Link
+              href="/?all=1"
+              className="flex items-center gap-2.5 rounded-lg px-2.5 py-3 text-[15px] font-medium text-shell-text"
+            >
+              <Icon name="stack" className="h-4 w-4" />
+              Switch brand
+            </Link>
+            <Link
               href="/settings"
               className="flex items-center gap-2.5 rounded-lg px-2.5 py-3 text-[15px] font-medium text-shell-text"
             >
@@ -231,9 +238,19 @@ export function BrandSidebar({
           </span>
         </Link>
 
-        <p className="px-5 pb-2 text-[11px] font-medium uppercase tracking-wider text-shell-text/70">
-          {brandName}
-        </p>
+        <Link
+          href="/?all=1"
+          title="Switch brand"
+          className="group mx-3 mb-2 flex items-center justify-between rounded-lg px-2 py-1.5 transition-colors hover:bg-shell-hover"
+        >
+          <span className="truncate text-[11px] font-medium uppercase tracking-wider text-shell-text group-hover:text-shell-bright">
+            {brandName}
+          </span>
+          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-shell-text" fill="none" aria-hidden>
+            <path d="M8 9l4-4 4 4M8 15l4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span className="sr-only">Switch brand</span>
+        </Link>
 
         <nav aria-label="Main" className="flex-1 space-y-0.5 overflow-y-auto px-3">
           <NavList brandId={brandId} pathname={pathname} />

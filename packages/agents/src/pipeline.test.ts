@@ -346,7 +346,7 @@ describe('the whole product, end to end', () => {
     });
     const job = await runNextJob(fresh);
     expect(job.status).toBe('failed');
-    expect(job.error).toMatch(/website analysis/i);
+    expect(job.error).toMatch(/no profile yet/i);
   });
 
   it('reports progress while a long job runs', async () => {

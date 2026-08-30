@@ -5,6 +5,7 @@ import { requireBrand } from '@/server/session';
 import { STATUS_TONES, statusLabel } from '@/lib/format';
 import { AutoRefresh } from '@/components/auto-refresh';
 import { SubmitButton } from '@/components/submit-button';
+import { SetupNeeded } from '@/components/setup-needed';
 
 /**
  * The central creation interface. One large input; the intent parser decides whether
@@ -15,6 +16,7 @@ export default async function StudioPage({ params }: { params: Promise<{ brandId
   const { brandId } = await params;
   const { runtime } = await requireBrand(brandId);
   const brain = await runtime.store.getBrain(brandId);
+  if (!brain) return <SetupNeeded brandId={brandId} />;
   const recent = await runtime.store.queryContent({ brandId, limit: 8 });
   const jobs = await runtime.store.listJobs(brandId, { limit: 6 });
   const active = jobs.filter((job) => job.status === 'running' || job.status === 'queued');

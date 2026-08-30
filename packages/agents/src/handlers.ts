@@ -36,7 +36,9 @@ export const ALL_COMPOSERS = { ...BRAND_COMPOSERS, ...CAMPAIGN_COMPOSERS };
 
 async function requireBrain(store: DataStore, brandId: string) {
   const brain = await store.getBrain(brandId);
-  if (!brain) throw new NotFoundError('Brand profile. Run the website analysis first');
+  // A plain Error, worded whole: NotFoundError appends " was not found.", which turned
+  // this into the garbled sentence users actually saw in their activity feed.
+  if (!brain) throw new Error('This brand has no profile yet. Finish the setup on the Today page first.');
   return brain;
 }
 

@@ -13,12 +13,15 @@ import { SubmitButton } from '@/components/submit-button';
  * it is the onboarding question from the spec, styled as the reference's dark modal:
  * paste the site, hit Analyze. With brands it routes into the newest one's workspace.
  */
-export default async function HomePage() {
+export default async function HomePage({ searchParams }: { searchParams: Promise<{ all?: string }> }) {
   const session = await requireSession();
+  const { all } = await searchParams;
   const brands = await session.runtime.store.listBrands(session.organizationId);
 
-  // One brand is the overwhelmingly common case; take the user straight to work.
-  if (brands.length === 1) redirect(`/brands/${brands[0]!.id}`);
+  // One brand is the overwhelmingly common case; take the user straight to work —
+  // unless they explicitly asked for the list (?all=1), which is how the sidebar's
+  // "Switch brand" escapes what used to be a redirect loop.
+  if (brands.length === 1 && !all) redirect(`/brands/${brands[0]!.id}`);
 
   if (brands.length === 0) {
     return (
@@ -103,6 +106,9 @@ export default async function HomePage() {
                 Analyze
               </Button>
             </form>
+            <Link href="/new" className="mt-3 inline-block text-[13px] font-medium text-accent-strong hover:underline">
+              No website? Answer a few questions instead →
+            </Link>
           </CardBody>
         </Card>
       </div>

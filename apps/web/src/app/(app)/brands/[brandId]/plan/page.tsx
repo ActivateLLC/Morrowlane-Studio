@@ -3,6 +3,7 @@ import { Button, Card, CardBody, Label, PageHeader, Select } from '@morrowlane/u
 import { startGuidedCampaign } from '@/server/actions';
 import { requireBrand } from '@/server/session';
 import { SubmitButton } from '@/components/submit-button';
+import { SetupNeeded } from '@/components/setup-needed';
 
 /**
  * The guided flow's front door (step 5). Instead of a blank goal box, the user picks the
@@ -17,6 +18,8 @@ export default async function PlanPage({ params }: { params: Promise<{ brandId: 
     runtime.store.getBrain(brandId),
     runtime.store.listConnections(brandId),
   ]);
+
+  if (!brain) return <SetupNeeded brandId={brandId} />;
 
   const connectedChannels = connections.filter((c) => c.status === 'active').map((c) => c.channel);
   const defaultChannels = connectedChannels.length > 0 ? connectedChannels : ['instagram'];

@@ -169,6 +169,12 @@ function contract(name: string, create: () => DataStore) {
         expect((await store.getPageByUrl(brandId, 'https://a.test/product'))?.pageType).toBe('product');
         expect(await store.getPageByUrl(brandId, 'https://a.test/missing')).toBeNull();
       });
+
+      it('corrects a brand\u2019s website address', async () => {
+        const brand = await store.createBrand({ organizationId, name: 'Typo', websiteUrl: 'https://wrong.example' });
+        const updated = await store.updateBrand(brand.id, { websiteUrl: 'https://right.example' });
+        expect(updated.websiteUrl).toBe('https://right.example');
+      });
     });
 
     describe('brand brain versions', () => {
