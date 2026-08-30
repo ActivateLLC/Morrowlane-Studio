@@ -752,33 +752,77 @@ export async function actOnOpportunity(brandId: string, kind: string, payload: R
 export async function connectDemoAccount(brandId: string, channel: string) {
   const { runtime } = await requireBrandAdmin(brandId);
   if (!isChannel(channel)) throw new ValidationError('That is not a channel Morrowlane publishes to.');
+  if (!runtime.demoMode) {
+    throw new ValidationError('Sample accounts only exist in the demo workspace. Connect a real account instead.');
+  }
 
   const provider = runtime.social.find(channel);
   if (!provider) throw new ValidationError(`Morrowlane has no adapter for ${channel}.`);
-  if (provider.configured && !runtime.demoMode) {
-    throw new ValidationError(`${provider.label} is configured for real OAuth. Use Connect instead.`);
-  }
 
-  const account = await provider.exchange({ code: 'demo', redirectUri: 'demo' });
+  // The sample is fabricated here rather than via provider.exchange(): the real OAuth
+  // adapters (rightly) refuse a fake code, and a sample must never depend on them.
   const { newId, nowIso } = await import('@morrowlane/shared');
-
   await runtime.store.saveConnection(
     {
       id: newId('connection'),
       brandId,
       channel,
-      displayName: account.displayName,
-      externalAccountId: account.externalAccountId,
+      displayName: `@yourbrand · sample`,
+      externalAccountId: `demo-${channel}`,
       status: 'active',
-      scopes: account.scopes,
-      expiresAt: account.expiresAt,
+      scopes: ['publish'],
+      expiresAt: null,
       lastValidatedAt: nowIso(),
       createdAt: nowIso(),
     },
-    { accessToken: account.accessToken, refreshToken: account.refreshToken, metadata: account.metadata },
+    { accessToken: `demo-${channel}-token`, refreshToken: null, metadata: { demo: true } },
   );
 
   revalidatePath(`/brands/${brandId}/connections`);
+}
+
+/**
+ * Bluesky's real connection: a handle plus an app password exchanged for a session over
+ * the AT Protocol — no redirect flow. Returns a result instead of throwing, because in
+ * production Next redacts thrown server-action messages and the form needs the reason.
+ */
+export async function connectBluesky(
+  brandId: string,
+  input: { identifier: string; appPassword: string },
+): Promise<{ ok: boolean; error?: string }> {
+  const { runtime } = await requireBrandAdmin(brandId);
+  const identifier = input.identifier.trim().replace(/^@/, '');
+  if (!identifier || !input.appPassword.trim()) {
+    return { ok: false, error: 'Enter your Bluesky handle and an app password.' };
+  }
+
+  try {
+    const { createBlueskySession } = await import('@morrowlane/social');
+    const account = await createBlueskySession(identifier, input.appPassword.trim());
+    const { newId, nowIso } = await import('@morrowlane/shared');
+
+    await runtime.store.saveConnection(
+      {
+        id: newId('connection'),
+        brandId,
+        channel: 'bluesky',
+        displayName: account.displayName,
+        externalAccountId: account.externalAccountId,
+        status: 'active',
+        scopes: account.scopes,
+        expiresAt: account.expiresAt,
+        lastValidatedAt: nowIso(),
+        createdAt: nowIso(),
+      },
+      { accessToken: account.accessToken, refreshToken: account.refreshToken, metadata: account.metadata },
+    );
+
+    revalidatePath(`/brands/${brandId}/connections`);
+    return { ok: true };
+  } catch (caught) {
+    const message = caught instanceof Error ? caught.message : 'Bluesky did not accept those details.';
+    return { ok: false, error: /401|auth/i.test(message) ? 'Bluesky did not accept that handle and app password.' : message };
+  }
 }
 
 /**
