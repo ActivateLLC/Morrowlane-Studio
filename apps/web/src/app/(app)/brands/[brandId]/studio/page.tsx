@@ -1,5 +1,5 @@
 import { CONTENT_FORMATS, FORMAT_PROFILES } from '@morrowlane/shared';
-import { Badge, Button, Card, CardBody, Input, Label, PageHeader, Select, Textarea } from '@morrowlane/ui';
+import { Badge, Button, Card, CardBody, Input, Label, PageHeader, ProgressBar, Select, Textarea } from '@morrowlane/ui';
 import { generateFormat, runStudio } from '@/server/actions';
 import { requireBrand } from '@/server/session';
 import { STATUS_TONES, statusLabel } from '@/lib/format';
@@ -14,7 +14,8 @@ export default async function StudioPage({ params }: { params: Promise<{ brandId
   const { runtime } = await requireBrand(brandId);
   const brain = await runtime.store.getBrain(brandId);
   const recent = await runtime.store.queryContent({ brandId, limit: 8 });
-  const jobs = await runtime.store.listJobs(brandId, { status: ['running', 'queued'], limit: 3 });
+  const jobs = await runtime.store.listJobs(brandId, { limit: 6 });
+  const active = jobs.filter((job) => job.status === 'running' || job.status === 'queued');
 
   return (
     <div className="space-y-8">
@@ -46,9 +47,43 @@ export default async function StudioPage({ params }: { params: Promise<{ brandId
       </Card>
 
       {jobs.length > 0 ? (
-        <p className="text-[13px] text-ink-soft">
-          Working on it: {jobs.map((job) => job.progressLabel ?? statusLabel(job.kind)).join(' · ')}
-        </p>
+        <section>
+          <h2 className="mb-3 text-sm font-semibold text-ink">Activity</h2>
+          <Card>
+            <CardBody className="divide-y divide-line p-0">
+              {jobs.map((job) => (
+                <div key={job.id} className="px-5 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[13px] font-medium text-ink">{statusLabel(job.kind)}</p>
+                    <Badge
+                      tone={
+                        job.status === 'succeeded'
+                          ? 'positive'
+                          : job.status === 'failed'
+                            ? 'critical'
+                            : 'accent'
+                      }
+                    >
+                      {job.status}
+                    </Badge>
+                  </div>
+                  {job.status === 'running' ? (
+                    <div className="mt-2">
+                      <ProgressBar value={job.progress} label={job.progressLabel ?? undefined} />
+                    </div>
+                  ) : null}
+                  {job.status === 'failed' && job.error ? (
+                    <p className="mt-1 text-[12px] text-critical">{job.error}</p>
+                  ) : null}
+                  {job.status === 'succeeded' && typeof job.result?.['count'] === 'number' ? (
+                    <p className="mt-1 text-[12px] text-ink-faint">{String(job.result['count'])} pieces created.</p>
+                  ) : null}
+                </div>
+              ))}
+            </CardBody>
+          </Card>
+          {active.length > 0 ? <meta httpEquiv="refresh" content="4" /> : null}
+        </section>
       ) : null}
 
       <section>

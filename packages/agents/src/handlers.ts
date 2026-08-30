@@ -91,6 +91,7 @@ export const HANDLERS: Record<JobKind, JobHandler> = {
     const channelValue = str(job.payload, 'channel');
 
     const insights = (await deps.store.listInsights(brandId)).filter((insight) => insight.applied);
+    const parentContentId = str(job.payload, 'parentContentId');
     const result = await generateContent(deps.gateway, {
       brain,
       format,
@@ -100,6 +101,8 @@ export const HANDLERS: Record<JobKind, JobHandler> = {
       topic: str(job.payload, 'topic'),
       productName: str(job.payload, 'productName'),
       campaignId: str(job.payload, 'campaignId'),
+      // Variants remember what they varied from; the learning loop needs the edge.
+      ...(parentContentId ? { lineage: { parentContentId } } : {}),
       insights: insights.map((insight) => insight.statement),
       appliedInsightIds: insights.map((insight) => insight.id),
     });

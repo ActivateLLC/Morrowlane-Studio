@@ -1,5 +1,6 @@
 import { CHANNELS, CONTENT_FORMATS, FORMAT_PROFILES } from '@morrowlane/shared';
 import { Badge, Button, Card, CardBody, EmptyState, Input, PageHeader, Select } from '@morrowlane/ui';
+import Link from 'next/link';
 import { requireBrand } from '@/server/session';
 import { approveContent, deleteContentItem, scheduleContentItem, updateContentBody } from '@/server/actions';
 import { STATUS_TONES, statusLabel } from '@/lib/format';
@@ -69,14 +70,21 @@ export default async function LibraryPage({
       ) : (
         <div className="space-y-3">
           {items.map((item) => (
-            <LibraryItem
-              key={item.id}
-              item={item}
-              approve={approveContent.bind(null, brandId, item.id)}
-              remove={deleteContentItem.bind(null, brandId, item.id)}
-              saveBody={updateContentBody.bind(null, brandId, item.id)}
-              schedule={scheduleContentItem.bind(null, brandId, item.id)}
-            />
+            <div key={item.id} className="relative">
+              <Link
+                href={`/brands/${brandId}/library/${item.id}`}
+                className="absolute right-4 top-4 z-10 text-[12px] font-medium text-accent hover:underline"
+              >
+                Open
+              </Link>
+              <LibraryItem
+                item={item}
+                approve={approveContent.bind(null, brandId, item.id)}
+                remove={deleteContentItem.bind(null, brandId, item.id)}
+                saveBody={updateContentBody.bind(null, brandId, item.id)}
+                schedule={scheduleContentItem.bind(null, brandId, item.id)}
+              />
+            </div>
           ))}
         </div>
       )}

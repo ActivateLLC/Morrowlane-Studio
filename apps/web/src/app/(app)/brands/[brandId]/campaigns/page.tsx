@@ -1,5 +1,6 @@
 import { SOCIAL_CHANNELS, CHANNEL_PROFILES } from '@morrowlane/shared';
 import { Badge, Button, Card, CardBody, CardHeader, Input, Label, PageHeader, Select } from '@morrowlane/ui';
+import Link from 'next/link';
 import { createCampaign } from '@/server/actions';
 import { requireBrand } from '@/server/session';
 import { formatDay } from '@/lib/format';
@@ -75,7 +76,9 @@ export default async function CampaignsPage({ params }: { params: Promise<{ bran
         <Card key={campaign.id}>
           <CardHeader className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <h3 className="text-sm font-semibold text-ink">{campaign.name}</h3>
+              <Link href={`/brands/${brandId}/campaigns/${campaign.id}`} className="hover:underline">
+                <h3 className="text-sm font-semibold text-ink">{campaign.name}</h3>
+              </Link>
               <p className="text-[12px] text-ink-faint">
                 {campaign.durationDays} days from {formatDay(campaign.startDate)} · {campaign.channels.join(', ')}
               </p>

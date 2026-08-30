@@ -11,14 +11,16 @@ export function LibraryItem({
   remove,
   saveBody,
   schedule,
+  defaultOpen = false,
 }: {
   item: ContentItem;
   approve: () => Promise<void>;
   remove: () => Promise<void>;
   saveBody: (body: string) => Promise<void>;
   schedule: (scheduledFor: string) => Promise<void>;
+  defaultOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [editing, setEditing] = useState(false);
   const [body, setBody] = useState(item.body);
   const [when, setWhen] = useState('');

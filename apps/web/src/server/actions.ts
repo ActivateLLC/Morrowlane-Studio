@@ -13,6 +13,7 @@ import {
   normalizeUrl,
   registrableHost,
   titleCase,
+  type Campaign,
   type Channel,
   type ContentFormat,
 } from '@morrowlane/shared';
@@ -247,6 +248,18 @@ export async function createCampaign(brandId: string, formData: FormData) {
   revalidatePath(`/brands/${brandId}/calendar`);
 }
 
+export async function updateCampaignStatus(brandId: string, campaignId: string, status: string) {
+  const { runtime } = await requireBrand(brandId);
+  const campaign = await runtime.store.getCampaign(campaignId);
+  if (!campaign || campaign.brandId !== brandId) throw new ValidationError('That campaign is not in this brand.');
+  if (!['active', 'complete', 'archived', 'ready'].includes(status)) {
+    throw new ValidationError('That is not a campaign status.');
+  }
+  await runtime.store.updateCampaign(campaignId, { status: status as Campaign['status'] });
+  revalidatePath(`/brands/${brandId}/campaigns`);
+  revalidatePath(`/brands/${brandId}/campaigns/${campaignId}`);
+}
+
 /* ------------------------------ Calendar -------------------------------- */
 
 export async function fillMonthAction(brandId: string) {
@@ -364,6 +377,50 @@ export async function scheduleContentItem(brandId: string, contentId: string, sc
   await runtime.store.updateContent(contentId, { status: 'scheduled' });
   revalidatePath(`/brands/${brandId}/calendar`);
   revalidatePath(`/brands/${brandId}/library`);
+}
+
+export async function duplicateContent(brandId: string, contentId: string) {
+  const { runtime } = await requireBrand(brandId);
+  const item = await runtime.store.getContent(contentId);
+  if (!item) throw new ValidationError('That content no longer exists.');
+
+  const { newId, nowIso } = await import('@morrowlane/shared');
+  const copy = {
+    ...structuredClone(item),
+    id: newId('content'),
+    status: 'draft' as const,
+    title: `${item.title} (copy)`,
+    lineage: { ...item.lineage, parentContentId: item.id },
+    createdAt: nowIso(),
+    updatedAt: nowIso(),
+  };
+  await runtime.store.saveContent([copy]);
+  revalidatePath(`/brands/${brandId}/library`);
+  redirect(`/brands/${brandId}/library/${copy.id}`);
+}
+
+/** Three fresh takes on the same idea, linked back to this item for the learning loop. */
+export async function generateVariants(brandId: string, contentId: string) {
+  const { organizationId, runtime } = await requireBrand(brandId);
+  const item = await runtime.store.getContent(contentId);
+  if (!item) throw new ValidationError('That content no longer exists.');
+
+  await enqueueAndMaybeRun({
+    organizationId,
+    brandId,
+    kind: 'generate_content',
+    payload: {
+      format: item.format,
+      channel: item.channel,
+      count: 3,
+      topic: item.topics[0] ?? item.title,
+      instruction: item.lineage.instruction ?? `Fresh angles on: ${item.title}`,
+      campaignId: item.campaignId,
+      parentContentId: item.id,
+    },
+  });
+  revalidatePath(`/brands/${brandId}/library`);
+  revalidatePath(`/brands/${brandId}/library/${contentId}`);
 }
 
 export async function deleteContentItem(brandId: string, contentId: string) {
