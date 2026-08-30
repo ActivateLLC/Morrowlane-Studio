@@ -32,8 +32,8 @@ export default async function LibraryPage({
       <PageHeader title="Content library" description={`${total} pieces of content, all reusable.`} />
 
       <form className="grid gap-3 sm:grid-cols-[1fr_170px_170px_150px_auto]">
-        <Input name="q" placeholder="Search content…" defaultValue={query['q'] ?? ''} />
-        <Select name="format" defaultValue={query['format'] ?? ''}>
+        <Input aria-label="Search content" name="q" placeholder="Search content…" defaultValue={query['q'] ?? ''} />
+        <Select aria-label="Filter by format" name="format" defaultValue={query['format'] ?? ''}>
           <option value="">All formats</option>
           {CONTENT_FORMATS.map((format) => (
             <option key={format} value={format}>
@@ -41,7 +41,7 @@ export default async function LibraryPage({
             </option>
           ))}
         </Select>
-        <Select name="channel" defaultValue={query['channel'] ?? ''}>
+        <Select aria-label="Filter by channel" name="channel" defaultValue={query['channel'] ?? ''}>
           <option value="">All channels</option>
           {CHANNELS.map((channel) => (
             <option key={channel} value={channel}>
@@ -49,7 +49,7 @@ export default async function LibraryPage({
             </option>
           ))}
         </Select>
-        <Select name="status" defaultValue={query['status'] ?? ''}>
+        <Select aria-label="Filter by status" name="status" defaultValue={query['status'] ?? ''}>
           <option value="">Any status</option>
           {['draft', 'needs_review', 'approved', 'scheduled', 'published'].map((status) => (
             <option key={status} value={status}>
@@ -70,14 +70,9 @@ export default async function LibraryPage({
       ) : (
         <div className="space-y-3">
           {items.map((item) => (
-            <div key={item.id} className="relative">
-              <Link
-                href={`/brands/${brandId}/library/${item.id}`}
-                className="absolute right-4 top-4 z-10 text-[12px] font-medium text-accent hover:underline"
-              >
-                Open
-              </Link>
+            <div key={item.id}>
               <LibraryItem
+                openHref={`/brands/${brandId}/library/${item.id}`}
                 item={item}
                 approve={approveContent.bind(null, brandId, item.id)}
                 remove={deleteContentItem.bind(null, brandId, item.id)}

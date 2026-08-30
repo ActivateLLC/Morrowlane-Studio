@@ -31,7 +31,8 @@ export function PostRow({
         pending && 'opacity-50',
       )}
     >
-      <button type="button" className="w-full text-left" onClick={() => setOpen((value) => !value)}>
+      <button type="button" className="w-full text-left"
+        aria-expanded={open} onClick={() => setOpen((value) => !value)}>
         <p className="truncate text-[12px] font-medium text-ink">{title}</p>
         <p className="mt-0.5 flex items-center justify-between text-[11px] text-ink-faint">
           <span>
@@ -47,6 +48,7 @@ export function PostRow({
           <div className="flex items-center gap-1.5">
             <input
               type="datetime-local"
+          aria-label="Reschedule this post"
               defaultValue={post.scheduledFor.slice(0, 16)}
               className="h-7 flex-1 rounded border border-line bg-white px-1.5 text-[11px]"
               onChange={(event) => {
@@ -68,7 +70,7 @@ export function PostRow({
       ) : null}
       {open && post.externalUrl ? (
         <p className="mt-2 border-t border-line pt-2 text-[11px]">
-          <a href={post.externalUrl} target="_blank" rel="noreferrer" className="text-accent hover:underline">
+          <a href={post.externalUrl} target="_blank" rel="noreferrer" className="text-accent-strong hover:underline">
             View live post
           </a>
         </p>

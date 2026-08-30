@@ -3,6 +3,7 @@ import { Badge, Button, Card, CardBody, Input, Label, PageHeader, ProgressBar, S
 import { generateFormat, runStudio } from '@/server/actions';
 import { requireBrand } from '@/server/session';
 import { STATUS_TONES, statusLabel } from '@/lib/format';
+import { AutoRefresh } from '@/components/auto-refresh';
 
 /**
  * The central creation interface. One large input; the intent parser decides whether
@@ -27,8 +28,7 @@ export default async function StudioPage({ params }: { params: Promise<{ brandId
       <Card>
         <CardBody className="py-6">
           <form action={runStudio.bind(null, brandId)} className="space-y-3">
-            <Textarea
-              name="instruction"
+            <Textarea aria-label="What should Morrowlane create?" name="instruction"
               rows={3}
               required
               className="text-base"
@@ -82,7 +82,8 @@ export default async function StudioPage({ params }: { params: Promise<{ brandId
               ))}
             </CardBody>
           </Card>
-          {active.length > 0 ? <meta httpEquiv="refresh" content="4" /> : null}
+          {active.length > 0 ?
+      <AutoRefresh intervalMs={4000} label="Morrowlane is working…" /> : null}
         </section>
       ) : null}
 

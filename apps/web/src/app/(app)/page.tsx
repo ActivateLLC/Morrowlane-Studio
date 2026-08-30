@@ -32,7 +32,7 @@ export default async function HomePage() {
             </span>
           </div>
           <div className="rounded-2xl border border-shell-line bg-shell-raised p-8 shadow-lifted">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-shell-hover text-accent">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-shell-hover text-accent-strong">
               <Icon name="globe" className="h-6 w-6" />
             </div>
             <h1 className="text-center text-xl font-semibold tracking-tight text-shell-bright">

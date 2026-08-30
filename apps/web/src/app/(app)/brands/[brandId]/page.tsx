@@ -5,6 +5,7 @@ import { Badge, Button, Card, CardBody, CardHeader, ProgressBar, Stat } from '@m
 import { actOnOpportunity, fillMonthAction, reanalyzeBrand } from '@/server/actions';
 import { requireBrand } from '@/server/session';
 import { formatDateTime, formatNumber, STATUS_TONES, statusLabel } from '@/lib/format';
+import { AutoRefresh } from '@/components/auto-refresh';
 
 /**
  * The brand home. It opens with creation — the three doors from the spec — and only
@@ -41,7 +42,7 @@ export default async function BrandTodayPage({ params }: { params: Promise<{ bra
                 <div className="mx-auto mt-5 max-w-sm">
                   <ProgressBar value={running?.progress ?? 0.05} label={running?.progressLabel ?? 'Starting'} />
                 </div>
-                <meta httpEquiv="refresh" content="3" />
+                <AutoRefresh intervalMs={3000} label="Reading your website…" />
               </>
             )}
           </CardBody>
@@ -152,7 +153,7 @@ export default async function BrandTodayPage({ params }: { params: Promise<{ bra
         <section className="min-w-0">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-ink">Upcoming posts</h2>
-            <Link href={`/brands/${brandId}/calendar`} className="text-[13px] text-accent hover:underline">
+            <Link href={`/brands/${brandId}/calendar`} className="text-[13px] text-accent-strong hover:underline">
               Open calendar
             </Link>
           </div>
@@ -183,7 +184,7 @@ export default async function BrandTodayPage({ params }: { params: Promise<{ bra
         <section className="min-w-0">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-ink">Recent content</h2>
-            <Link href={`/brands/${brandId}/library`} className="text-[13px] text-accent hover:underline">
+            <Link href={`/brands/${brandId}/library`} className="text-[13px] text-accent-strong hover:underline">
               Open library
             </Link>
           </div>
@@ -212,7 +213,7 @@ export default async function BrandTodayPage({ params }: { params: Promise<{ bra
           <Card>
             <CardHeader className="flex items-center justify-between">
               <h2 className="text-sm font-semibold text-ink">Performance insights</h2>
-              <Link href={`/brands/${brandId}/analytics`} className="text-[13px] text-accent hover:underline">
+              <Link href={`/brands/${brandId}/analytics`} className="text-[13px] text-accent-strong hover:underline">
                 See analytics
               </Link>
             </CardHeader>

@@ -19,8 +19,8 @@ export default async function SettingsPage() {
         </CardHeader>
         <CardBody className="space-y-4">
           <form action={inviteTeammate} className="flex flex-wrap gap-2">
-            <Input name="email" type="email" placeholder="teammate@company.com" required className="max-w-xs" />
-            <Select name="role" defaultValue="editor" className="max-w-[140px]">
+            <Input aria-label="Teammate email address" name="email" type="email" placeholder="teammate@company.com" required className="max-w-xs" />
+            <Select aria-label="Role for the invited teammate" name="role" defaultValue="editor" className="max-w-[140px]">
               <option value="admin">Admin</option>
               <option value="editor">Editor</option>
               <option value="viewer">Viewer</option>

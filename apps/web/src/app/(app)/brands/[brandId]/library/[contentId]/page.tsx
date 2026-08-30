@@ -51,7 +51,7 @@ export default async function ContentDetailPage({
     {
       label: 'Source',
       body: item.lineage.sourceUrl ? (
-        <a href={item.lineage.sourceUrl} target="_blank" rel="noreferrer" className="break-words text-accent hover:underline">
+        <a href={item.lineage.sourceUrl} target="_blank" rel="noreferrer" className="break-words text-accent-strong hover:underline">
           {item.lineage.sourceUrl}
         </a>
       ) : (
@@ -66,7 +66,7 @@ export default async function ContentDetailPage({
           {
             label: 'Variant of',
             body: (
-              <Link href={`/brands/${brandId}/library/${parent.id}`} className="text-accent hover:underline">
+              <Link href={`/brands/${brandId}/library/${parent.id}`} className="text-accent-strong hover:underline">
                 {parent.title}
               </Link>
             ),
@@ -78,7 +78,7 @@ export default async function ContentDetailPage({
           {
             label: 'Campaign',
             body: (
-              <Link href={`/brands/${brandId}/campaigns/${campaign.id}`} className="text-accent hover:underline">
+              <Link href={`/brands/${brandId}/campaigns/${campaign.id}`} className="text-accent-strong hover:underline">
                 {campaign.name}
               </Link>
             ),
@@ -102,7 +102,7 @@ export default async function ContentDetailPage({
                   {formatDateTime(post.scheduledFor)} · {post.channel}
                 </span>
                 {post.externalUrl ? (
-                  <a href={post.externalUrl} target="_blank" rel="noreferrer" className="text-accent hover:underline">
+                  <a href={post.externalUrl} target="_blank" rel="noreferrer" className="text-accent-strong hover:underline">
                     view live
                   </a>
                 ) : null}

@@ -122,7 +122,7 @@ export default async function BrainPage({ params }: { params: Promise<{ brandId:
                 <p className="text-sm font-medium text-ink">{product.name}</p>
                 <Badge tone="neutral">{product.kind}</Badge>
               </div>
-              {product.priceHint ? <p className="mt-0.5 text-[12px] text-accent">{product.priceHint}</p> : null}
+              {product.priceHint ? <p className="mt-0.5 text-[12px] text-accent-strong">{product.priceHint}</p> : null}
               <p className="mt-2 text-[13px] text-ink-soft">{product.description}</p>
               {product.benefits.length > 0 ? (
                 <ul className="mt-2 space-y-0.5 text-[12px] text-ink-soft">
