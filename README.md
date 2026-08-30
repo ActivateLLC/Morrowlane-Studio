@@ -46,6 +46,13 @@ configure any subset and the rest keep their local defaults.
    `services/video` (Remotion — review its license first), `services/automation` (n8n,
    internal only). Each is optional and isolated.
 
+## Cross-platform
+
+The web app installs everywhere: a full PWA (manifest, maskable icons, offline
+fallback, standalone display) covers iPhone/Android home screens and Chrome/Edge
+desktop installs, and `apps/mobile` holds a Capacitor scaffold for App Store /
+Play Store distribution. See [`docs/architecture/cross-platform.md`](docs/architecture/cross-platform.md).
+
 ## How it's built
 
 ```
