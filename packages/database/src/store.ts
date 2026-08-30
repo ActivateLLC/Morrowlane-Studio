@@ -60,6 +60,8 @@ export interface DataStore {
   listOrganizationsForUser(userId: string): Promise<Organization[]>;
   listMemberships(organizationId: string): Promise<Membership[]>;
   inviteMember(input: { organizationId: string; email: string; role: Membership['role'] }): Promise<Membership>;
+  /** Unclaimed invitations addressed to this email — used to link a new sign-in to the orgs that invited them. */
+  listPendingInvitesByEmail(email: string): Promise<Membership[]>;
   acceptInvite(input: { membershipId: string; userId: string }): Promise<Membership>;
   removeMember(membershipId: string): Promise<void>;
   getMembership(organizationId: string, userId: string): Promise<Membership | null>;

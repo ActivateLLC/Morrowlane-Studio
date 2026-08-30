@@ -39,8 +39,10 @@ convention or Next and vitest disagree about resolution.
 ### Data layer (`packages/database`)
 
 `DataStore` is the single persistence port with two implementations — `memory.ts` and
-`supabase.ts` — verified by **one shared contract test suite** (`store.test.ts` runs against both).
-Any new store method needs: the interface, both implementations, and a contract test.
+`supabase.ts`. The **shared contract test suite** (`store.test.ts`) is written against the
+`DataStore` interface and currently runs against the memory store; the Supabase store has
+targeted regression tests (`supabase.test.ts`, e.g. the `claimJob` null-guard). Any new store
+method needs: the interface, both implementations, and a contract test.
 
 - Supabase RLS uses security-definer helper functions (`is_org_member`, `can_read_brand`, …) in
   `migrations/0002_security_hardening.sql`.

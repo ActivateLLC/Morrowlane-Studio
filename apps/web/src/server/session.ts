@@ -80,6 +80,16 @@ export async function requireSession(): Promise<Session> {
   if (!user) throw new UnauthorizedError();
 
   const runtime = getRuntime();
+
+  // Claim any workspace invitations addressed to this email before resolving orgs,
+  // so an invited teammate lands in the workspace that invited them rather than a
+  // brand-new empty one.
+  const pending = await runtime.store.listPendingInvitesByEmail(user.email);
+  for (const invite of pending) {
+    await runtime.store.acceptInvite({ membershipId: invite.id, userId: user.id });
+    log.info('accepted workspace invitation', { userId: user.id, organizationId: invite.organizationId });
+  }
+
   const organizations = await runtime.store.listOrganizationsForUser(user.id);
 
   if (organizations.length === 0) {

@@ -127,6 +127,13 @@ export function createMemoryStore(): DataStore & { reset(): void } {
       return clone(membership);
     },
 
+    async listPendingInvitesByEmail(email) {
+      const target = email.toLowerCase();
+      return [...memberships.values()]
+        .filter((m) => m.acceptedAt === null && m.userId === '' && m.email.toLowerCase() === target)
+        .map(clone);
+    },
+
     async acceptInvite({ membershipId, userId }) {
       const membership = memberships.get(membershipId);
       if (!membership) throw new NotFoundError('Invitation');

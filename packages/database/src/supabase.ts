@@ -155,6 +155,11 @@ export function createSupabaseStore(options: { url?: string; serviceRoleKey?: st
       return map.toMembership(row ?? {});
     },
 
+    async listPendingInvitesByEmail(email) {
+      const rows = await selectMany('memberships', (q) => q.is('user_id', null).is('accepted_at', null).ilike('email', email));
+      return rows.map(map.toMembership);
+    },
+
     async acceptInvite({ membershipId, userId }) {
       return map.toMembership(await updateRow('memberships', membershipId, { user_id: userId, accepted_at: nowIso() }));
     },

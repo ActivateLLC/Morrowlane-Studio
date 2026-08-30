@@ -78,6 +78,16 @@ function contract(name: string, create: () => DataStore) {
         expect((await store.listOrganizationsForUser('user-2')).map((o) => o.id)).toEqual([organizationId]);
       });
 
+      it('finds pending invites by email and stops listing them once claimed', async () => {
+        const invite = await store.inviteMember({ organizationId, email: 'Pending@acme.test', role: 'viewer' });
+
+        const pending = await store.listPendingInvitesByEmail('pending@acme.test');
+        expect(pending.map((m) => m.id)).toEqual([invite.id]);
+
+        await store.acceptInvite({ membershipId: invite.id, userId: 'user-3' });
+        expect(await store.listPendingInvitesByEmail('pending@acme.test')).toEqual([]);
+      });
+
       it('does not create a second invite for the same address', async () => {
         const first = await store.inviteMember({ organizationId, email: 'dup@acme.test', role: 'editor' });
         const second = await store.inviteMember({ organizationId, email: 'DUP@acme.test', role: 'viewer' });

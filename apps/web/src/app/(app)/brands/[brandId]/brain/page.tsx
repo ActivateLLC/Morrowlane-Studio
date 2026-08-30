@@ -22,6 +22,8 @@ export default async function BrainPage({ params }: { params: Promise<{ brandId:
   }
 
   const save = (path: string) => updateBrainField.bind(null, brandId, path);
+  const lockedSet = new Set(brain.lockedFields);
+  const isLocked = (path: string) => lockedSet.has(path);
 
   return (
     <div className="space-y-6">
@@ -62,14 +64,14 @@ export default async function BrainPage({ params }: { params: Promise<{ brandId:
             <h2 className="text-sm font-semibold text-ink">Identity</h2>
           </CardHeader>
           <CardBody className="space-y-4">
-            <EditableField label="Company" value={brain.identity.companyName} save={save('identity.companyName')} />
-            <EditableField label="Category" value={brain.identity.category} save={save('identity.category')} />
-            <EditableField label="One-liner" value={brain.identity.oneLiner} save={save('identity.oneLiner')} multiline />
-            <EditableField label="Description" value={brain.identity.description} save={save('identity.description')} multiline />
+            <EditableField label="Company" value={brain.identity.companyName} save={save('identity.companyName')} locked={isLocked('identity.companyName')} />
+            <EditableField label="Category" value={brain.identity.category} save={save('identity.category')} locked={isLocked('identity.category')} />
+            <EditableField label="One-liner" value={brain.identity.oneLiner} save={save('identity.oneLiner')} locked={isLocked('identity.oneLiner')} multiline />
+            <EditableField label="Description" value={brain.identity.description} save={save('identity.description')} locked={isLocked('identity.description')} multiline />
             <EditableField
               label="Audience"
               value={brain.identity.audience.join('\n')}
-              save={save('identity.audience')}
+              save={save('identity.audience')} locked={isLocked('identity.audience')}
               multiline
               hint="One audience per line."
             />
@@ -84,11 +86,11 @@ export default async function BrainPage({ params }: { params: Promise<{ brandId:
             <EditableField
               label="Traits"
               value={brain.voice.traits.join('\n')}
-              save={save('voice.traits')}
+              save={save('voice.traits')} locked={isLocked('voice.traits')}
               multiline
               hint="One trait per line: clear, confident, approachable…"
             />
-            <EditableField label="How it sounds" value={brain.voice.personSummary} save={save('voice.personSummary')} multiline />
+            <EditableField label="How it sounds" value={brain.voice.personSummary} save={save('voice.personSummary')} locked={isLocked('voice.personSummary')} multiline />
             <div>
               <p className="mb-1.5 text-[13px] font-medium text-ink-soft">Sample sentences from the site</p>
               <ul className="space-y-1">
@@ -143,19 +145,19 @@ export default async function BrainPage({ params }: { params: Promise<{ brandId:
             <EditableField
               label="Prohibited claims"
               value={brain.rules.prohibitedClaims.join('\n')}
-              save={save('rules.prohibitedClaims')}
+              save={save('rules.prohibitedClaims')} locked={isLocked('rules.prohibitedClaims')}
               multiline
             />
             <EditableField
               label="Prohibited terminology"
               value={brain.rules.prohibitedTerminology.join('\n')}
-              save={save('rules.prohibitedTerminology')}
+              save={save('rules.prohibitedTerminology')} locked={isLocked('rules.prohibitedTerminology')}
               multiline
             />
             <EditableField
               label="Preferred calls to action"
               value={brain.rules.preferredCtas.join('\n')}
-              save={save('rules.preferredCtas')}
+              save={save('rules.preferredCtas')} locked={isLocked('rules.preferredCtas')}
               multiline
             />
             {brain.rules.regulatoryNotes.length > 0 ? (

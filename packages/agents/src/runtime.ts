@@ -26,7 +26,14 @@ export interface Runtime extends HandlerDeps {
   readonly demoMode: boolean;
 }
 
-let cached: Runtime | null = null;
+// The runtime — and with it the in-memory DataStore — must be a single instance shared
+// across every module graph. Under `next dev` each route segment and server-action
+// bundle evaluates this module separately, so a plain module-scoped `let` gives each its
+// own empty store: the demo seed writes to one, page renders read another, and every
+// brand page 404s. Caching on `globalThis` makes all graphs (and HMR reloads) share one.
+const RUNTIME_KEY = Symbol.for('morrowlane.runtime');
+type RuntimeGlobal = typeof globalThis & { [RUNTIME_KEY]?: Runtime | null };
+const runtimeGlobal = globalThis as RuntimeGlobal;
 
 /**
  * Assembles the product from its environment. Every dependency has a working local
@@ -68,10 +75,10 @@ export function createRuntime(overrides: Partial<Runtime> = {}): Runtime {
 
 /** Process-wide runtime. Next.js route handlers reuse one instance per server. */
 export function getRuntime(): Runtime {
-  cached ??= createRuntime();
-  return cached;
+  runtimeGlobal[RUNTIME_KEY] ??= createRuntime();
+  return runtimeGlobal[RUNTIME_KEY]!;
 }
 
 export function setRuntime(runtime: Runtime): void {
-  cached = runtime;
+  runtimeGlobal[RUNTIME_KEY] = runtime;
 }
