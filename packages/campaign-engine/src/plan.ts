@@ -1,16 +1,19 @@
 import type {
   BrandBrain,
   Campaign,
+  CampaignOutcomeId,
   CampaignPhase,
   CampaignPhaseKind,
   Channel,
 } from '@morrowlane/shared';
-import { addDays, newId, nowIso, startOfUtcDay, truncate } from '@morrowlane/shared';
+import { addDays, getCampaignOutcome, newId, nowIso, startOfUtcDay, truncate } from '@morrowlane/shared';
 import { type AiGateway, campaignPlanSchema } from '@morrowlane/content-engine';
 
 export interface PlanCampaignRequest {
   brain: BrandBrain;
   goal: string;
+  /** The chosen business outcome (guided flow); biases the phase mix. */
+  outcome?: CampaignOutcomeId | null;
   productName?: string | null;
   channels: Channel[];
   durationDays: number;
@@ -32,6 +35,18 @@ const PHASE_WEIGHTS: Array<{ kind: CampaignPhaseKind; weight: number; title: str
   { kind: 'conversion', weight: 0.15, title: 'Conversion' },
 ];
 
+/**
+ * Applies a business outcome's phase bias to the base weights. A "drive sales" outcome
+ * pushes budget onto proof and conversion; "build awareness" pushes it onto the top of
+ * the funnel. Weights are re-normalized by the layout step, so only the ratios matter.
+ */
+export function effectiveWeights(outcome?: CampaignOutcomeId | null): Record<CampaignPhaseKind, number> {
+  const bias = getCampaignOutcome(outcome)?.phaseBias ?? {};
+  const weights = {} as Record<CampaignPhaseKind, number>;
+  for (const { kind, weight } of PHASE_WEIGHTS) weights[kind] = weight * (bias[kind] ?? 1);
+  return weights;
+}
+
 export async function planCampaign(
   gateway: AiGateway,
   request: PlanCampaignRequest,
@@ -48,6 +63,9 @@ export async function planCampaign(
   const product =
     request.brain.products.find((p) => p.name === request.productName) ?? request.brain.products[0] ?? null;
 
+  const outcome = getCampaignOutcome(request.outcome);
+  const weights = effectiveWeights(request.outcome);
+
   const { value: plan } = await gateway.completeObject(
     {
       purpose: 'plan_campaign',
@@ -62,6 +80,7 @@ export async function planCampaign(
         oneLiner: request.brain.identity.oneLiner,
         description: truncate(request.brain.identity.description, 500),
         goal: request.goal,
+        outcome: outcome ? { label: outcome.label, ctaEmphasis: outcome.ctaEmphasis } : null,
         product: product
           ? {
               name: product.name,
@@ -83,7 +102,7 @@ export async function planCampaign(
   );
 
   const campaignId = newId('campaign');
-  const phases = layOutPhases(campaignId, plan.phases, durationDays, totalPosts);
+  const phases = layOutPhases(campaignId, plan.phases, durationDays, totalPosts, weights);
   const now = nowIso();
 
   return {
@@ -91,6 +110,7 @@ export async function planCampaign(
     brandId: request.brain.brandId,
     name: plan.name,
     goal: request.goal,
+    outcome: outcome?.id ?? null,
     productId: product?.id ?? null,
     channels,
     durationDays,
@@ -119,9 +139,10 @@ export function layOutPhases(
   planned: PlannedPhase[],
   durationDays: number,
   totalPosts: number,
+  weightByKind: Record<CampaignPhaseKind, number> = effectiveWeights(null),
 ): CampaignPhase[] {
   const phases = planned.length > 0 ? planned : PHASE_WEIGHTS.map((p) => ({ ...p, narrative: '', postCount: 0 }));
-  const weights = phases.map((phase) => PHASE_WEIGHTS.find((w) => w.kind === phase.kind)?.weight ?? 1 / phases.length);
+  const weights = phases.map((phase) => weightByKind[phase.kind] ?? 1 / phases.length);
   const weightTotal = weights.reduce((sum, weight) => sum + weight, 0);
 
   let dayCursor = 0;

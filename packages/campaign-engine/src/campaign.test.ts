@@ -62,6 +62,20 @@ describe('planCampaign', () => {
     expect(education.postCount).toBeGreaterThan(conversion.postCount);
   });
 
+  it('biases the phase mix toward the chosen business outcome', async () => {
+    const base = { brain, channels: ['instagram'] as const, durationDays: 30, startDate: '2026-09-01T00:00:00.000Z' };
+    const sales = await planCampaign(gateway, { ...base, goal: 'Sell.', outcome: 'sales' });
+    const awareness = await planCampaign(gateway, { ...base, goal: 'Get known.', outcome: 'awareness' });
+
+    const conv = (c: typeof sales) => c.phases.find((p) => p.kind === 'conversion')!.postCount;
+    const top = (c: typeof sales) => c.phases.find((p) => p.kind === 'problem_awareness')!.postCount;
+
+    // Sales pushes budget onto conversion; awareness pushes it onto the top of the funnel.
+    expect(conv(sales)).toBeGreaterThan(conv(awareness));
+    expect(top(awareness)).toBeGreaterThan(top(sales));
+    expect(sales.outcome).toBe('sales');
+  });
+
   it('grounds the narrative in the brand it was built from', () => {
     expect(campaign.narrative).toContain('consumers building credit');
     expect(campaign.name).toContain('Credit Builder Account');

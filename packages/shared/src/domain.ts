@@ -299,6 +299,8 @@ export interface Campaign {
   brandId: string;
   name: string;
   goal: string;
+  /** The business outcome that shaped this campaign (guided flow); null for free-form goals. */
+  outcome: string | null;
   productId: string | null;
   channels: Channel[];
   durationDays: number;
