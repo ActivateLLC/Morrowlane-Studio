@@ -6,4 +6,5 @@ export * from './extract.js';
 export * from './priority.js';
 export * from './discover.js';
 export * from './crawl.js';
+export * from './service-fetcher.js';
 export * from './fixtures/orca.js';
