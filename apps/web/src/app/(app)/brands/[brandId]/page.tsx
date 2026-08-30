@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { buildOpportunities, performanceByContent } from '@morrowlane/analytics';
 import { addDays, nowIso } from '@morrowlane/shared';
 import { Badge, Button, Card, CardBody, CardHeader, ProgressBar, Stat } from '@morrowlane/ui';
-import { actOnOpportunity, reanalyzeBrand } from '@/server/actions';
+import { actOnOpportunity, fillMonthAction, reanalyzeBrand } from '@/server/actions';
 import { requireBrand } from '@/server/session';
 import { formatDateTime, formatNumber, STATUS_TONES, statusLabel } from '@/lib/format';
 
@@ -77,32 +77,44 @@ export default async function BrandTodayPage({ params }: { params: Promise<{ bra
   return (
     <div className="space-y-8">
       <section>
-        <h1 className="mb-4 text-xl font-semibold tracking-tight text-ink">What are we marketing today?</h1>
-        <div className="grid gap-4 md:grid-cols-3">
+        <h1 className="mb-4 text-xl font-semibold tracking-tight text-ink">What do you want to do?</h1>
+        {/* Intent-based, not object-based: the door names the goal; behind it, the real
+            power page does the work. */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Link href={`/brands/${brandId}/studio`}>
             <Card className="h-full transition-shadow hover:shadow-lifted">
               <CardBody className="py-5">
-                <p className="font-medium text-ink">Generate content</p>
-                <p className="mt-1 text-[13px] text-ink-soft">Create content from your entire brand.</p>
-              </CardBody>
-            </Card>
-          </Link>
-          <Link href={`/brands/${brandId}/plan`}>
-            <Card className="h-full border-accent/40 transition-shadow hover:shadow-lifted">
-              <CardBody className="py-5">
-                <p className="font-medium text-ink">Run a campaign</p>
-                <p className="mt-1 text-[13px] text-ink-soft">Pick an outcome; get one plan to approve, scheduled for you.</p>
+                <p className="font-medium text-ink">Create content</p>
+                <p className="mt-1 text-[13px] text-ink-soft">Posts, threads, emails and more from your brand.</p>
               </CardBody>
             </Card>
           </Link>
           <Link href={`/brands/${brandId}/remix`}>
             <Card className="h-full transition-shadow hover:shadow-lifted">
               <CardBody className="py-5">
-                <p className="font-medium text-ink">Promote a URL</p>
-                <p className="mt-1 text-[13px] text-ink-soft">Turn one webpage into content everywhere.</p>
+                <p className="font-medium text-ink">Promote something</p>
+                <p className="mt-1 text-[13px] text-ink-soft">Turn a product, page or link into content everywhere.</p>
               </CardBody>
             </Card>
           </Link>
+          <Link href={`/brands/${brandId}/plan`}>
+            <Card className="h-full border-accent/40 transition-shadow hover:shadow-lifted">
+              <CardBody className="py-5">
+                <p className="font-medium text-ink">Get more customers</p>
+                <p className="mt-1 text-[13px] text-ink-soft">Pick a goal; get one campaign plan to approve.</p>
+              </CardBody>
+            </Card>
+          </Link>
+          <form action={fillMonthAction.bind(null, brandId)} className="contents">
+            <button type="submit" className="text-left">
+              <Card className="h-full transition-shadow hover:shadow-lifted">
+                <CardBody className="py-5">
+                  <p className="font-medium text-ink">Fill my month</p>
+                  <p className="mt-1 text-[13px] text-ink-soft">A balanced month of content, scheduled for you.</p>
+                </CardBody>
+              </Card>
+            </button>
+          </form>
         </div>
       </section>
 

@@ -373,7 +373,8 @@ export async function approvePlan(brandId: string, campaignId: string) {
 
   revalidatePath(`/brands/${brandId}/campaigns/${campaignId}`);
   revalidatePath(`/brands/${brandId}/calendar`);
-  redirect(`/brands/${brandId}/calendar`);
+  // Golden-path completion: the "your month is ready" hand-off into the power pages.
+  redirect(`/brands/${brandId}/ready?campaign=${campaignId}`);
 }
 
 export async function updateCampaignStatus(brandId: string, campaignId: string, status: string) {
@@ -399,6 +400,9 @@ export async function fillMonthAction(brandId: string) {
     payload: { days: 30 },
   });
   revalidatePath(`/brands/${brandId}/calendar`);
+  revalidatePath(`/brands/${brandId}/library`);
+  // Golden-path completion: summarise what was made, then hand off to the power page.
+  redirect(`/brands/${brandId}/ready?fill=1`);
 }
 
 export async function reschedulePost(brandId: string, postId: string, scheduledFor: string) {
