@@ -14,6 +14,10 @@ Railway: crawler (Crawl4AI, optional)
 
 ## Vercel — web app
 
+Project: **morrowlane-studio** (`prj_47cqEpS1vd7mF6eDQVwMmDeW4FAK`) on the
+aaronmarcels-projects team, linked to this repo with root directory `apps/web`.
+Production deploys from `main`; branch pushes create preview deployments.
+
 - Import the GitHub repo; **Root Directory: `apps/web`**. Vercel detects the pnpm
   workspace and Next.js automatically; no custom build command needed.
 - Environment variables:
