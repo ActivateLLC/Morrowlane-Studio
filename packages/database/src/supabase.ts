@@ -575,7 +575,11 @@ export function createSupabaseStore(options: { url?: string; serviceRoleKey?: st
       });
       if (error) fail('Could not claim a job', error);
       const row = Array.isArray(data) ? (data[0] as Row | undefined) : (data as Row | null);
-      return row ? map.toJob(row) : null;
+      // plpgsql's `return null` arrives through PostgREST as a composite row whose
+      // fields are all null, not as null itself. Without this guard the worker
+      // "claims" a phantom job with an empty id on every idle poll.
+      if (!row || typeof row['id'] !== 'string' || row['id'].length === 0) return null;
+      return map.toJob(row);
     },
 
     async updateJob(id, patch) {
