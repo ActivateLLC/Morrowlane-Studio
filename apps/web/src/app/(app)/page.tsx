@@ -36,11 +36,11 @@ export default async function HomePage() {
               <Icon name="globe" className="h-6 w-6" />
             </div>
             <h1 className="text-center text-xl font-semibold tracking-tight text-shell-bright">
-              What’s your website?
+              How should Morrowlane learn your business?
             </h1>
             <p className="mx-auto mt-2 max-w-sm text-center text-[13px] leading-relaxed text-shell-text">
-              Morrowlane reads the whole site — products, pricing, voice, FAQs, testimonials — and
-              builds the brand profile everything else is generated from.
+              Paste your website and Morrowlane reads the whole thing — products, pricing, voice, FAQs — to build
+              your brand profile.
             </p>
             <form action={addBrand} className="mt-6 flex flex-col gap-2 sm:flex-row">
               <input
@@ -54,6 +54,17 @@ export default async function HomePage() {
                 Analyze
               </Button>
             </form>
+            <div className="mt-5 flex items-center gap-3 text-[11px] uppercase tracking-wide text-shell-text/60">
+              <span className="h-px flex-1 bg-shell-line" />
+              or
+              <span className="h-px flex-1 bg-shell-line" />
+            </div>
+            <Link
+              href="/new"
+              className="mt-4 flex w-full items-center justify-center rounded-lg border border-shell-line px-4 py-2.5 text-[13px] font-medium text-shell-bright transition hover:bg-shell-hover"
+            >
+              I don’t have a website yet →
+            </Link>
           </div>
         </div>
       </main>

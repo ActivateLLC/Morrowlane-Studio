@@ -29,13 +29,19 @@ export default async function BrainPage({ params }: { params: Promise<{ brandId:
     <div className="space-y-6">
       <PageHeader
         title="Brand Brain"
-        description={`Built from ${brain.sourcePageCount} pages on ${brand.websiteUrl}. Edit anything — your edits survive re-analysis.`}
+        description={
+          brand.websiteUrl
+            ? `Built from ${brain.sourcePageCount} pages on ${brand.websiteUrl}. Edit anything — your edits survive re-analysis.`
+            : 'Built from your Brand Builder answers. Edit anything — your edits are kept. Add a website any time to enrich it.'
+        }
         action={
-          <form action={reanalyzeBrand.bind(null, brandId)}>
-            <Button type="submit" variant="secondary">
-              Re-read the website
-            </Button>
-          </form>
+          brand.websiteUrl ? (
+            <form action={reanalyzeBrand.bind(null, brandId)}>
+              <Button type="submit" variant="secondary">
+                Re-read the website
+              </Button>
+            </form>
+          ) : null
         }
       />
 

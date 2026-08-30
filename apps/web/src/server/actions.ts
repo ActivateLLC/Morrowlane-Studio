@@ -61,6 +61,63 @@ export async function signOut() {
 
 /* ------------------------------ Brands --------------------------------- */
 
+/** Uploaded images become data URLs so the zero-config store can hold them; big files are skipped. */
+async function fileToDataUrl(file: File, maxBytes: number): Promise<string | null> {
+  if (!file || file.size === 0 || file.size > maxBytes || !file.type.startsWith('image/')) return null;
+  const base64 = Buffer.from(await file.arrayBuffer()).toString('base64');
+  return `data:${file.type};base64,${base64}`;
+}
+
+/**
+ * The "I don't have a website yet" path. Instead of a crawl, the user answers a few
+ * high-value questions and Morrowlane builds the first Brand Profile from them — a real
+ * Brand Brain in the same system, editable and ready to generate against.
+ */
+export async function startBrandBuilder(formData: FormData) {
+  const session = await requireSession();
+
+  const businessName = String(formData.get('businessName') ?? '').trim();
+  const whatYouSell = String(formData.get('whatYouSell') ?? '').trim();
+  if (!businessName) throw new ValidationError('What is your business called?');
+  if (!whatYouSell) throw new ValidationError('Tell Morrowlane what you sell so it has something to work from.');
+
+  const contactChannels = String(formData.get('contactChannels') ?? '')
+    .split(/[\n,]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  // A logo and up to four images, small ones only, stored inline as data URLs.
+  const logoUrls = ([await fileToDataUrl(formData.get('logo') as File, 800_000)].filter(Boolean) as string[]);
+  const imageUrls = (
+    await Promise.all(formData.getAll('images').slice(0, 4).map((f) => fileToDataUrl(f as File, 1_200_000)))
+  ).filter(Boolean) as string[];
+
+  const brand = await session.runtime.store.createBrand({
+    organizationId: session.organizationId,
+    name: businessName,
+    websiteUrl: '',
+  });
+
+  await enqueueAndMaybeRun({
+    organizationId: session.organizationId,
+    brandId: brand.id,
+    kind: 'build_brand_profile',
+    payload: {
+      businessName,
+      whatYouSell,
+      audience: String(formData.get('audience') ?? '').trim() || null,
+      desiredAction: String(formData.get('desiredAction') ?? '').trim() || null,
+      contactChannels,
+      brandFeel: String(formData.get('brandFeel') ?? '').trim() || null,
+      logoUrls,
+      imageUrls,
+    },
+  });
+
+  revalidatePath('/');
+  redirect(`/brands/${brand.id}`);
+}
+
 export async function addBrand(formData: FormData) {
   const session = await requireSession();
   const raw = String(formData.get('websiteUrl') ?? '');

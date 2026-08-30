@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // The Brand Builder accepts a logo and a few images, uploaded through a server action.
+  experimental: { serverActions: { bodySizeLimit: '6mb' } },
   // Workspace packages ship TypeScript source, so Next compiles them with the app.
   transpilePackages: [
     '@morrowlane/agents',

@@ -463,6 +463,7 @@ export interface Insight {
 export const JOB_KINDS = [
   'crawl_site',
   'build_brand_brain',
+  'build_brand_profile',
   'generate_content',
   'remix_url',
   'plan_campaign',

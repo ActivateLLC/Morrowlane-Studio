@@ -1,4 +1,4 @@
-import { BRAND_COMPOSERS } from '@morrowlane/brand-engine';
+import { BRAND_COMPOSERS, buildBrandFromProfile } from '@morrowlane/brand-engine';
 import {
   CAMPAIGN_COMPOSERS,
   fillMonth,
@@ -61,6 +61,12 @@ function outcome(payload: Record<string, unknown>): CampaignOutcomeId | null {
   return isCampaignOutcome(value) ? value : null;
 }
 
+function stringList(payload: Record<string, unknown>, key: string): string[] {
+  const value = payload[key];
+  if (!Array.isArray(value)) return [];
+  return value.filter((v): v is string => typeof v === 'string' && v.trim().length > 0);
+}
+
 export const HANDLERS: Record<JobKind, JobHandler> = {
   async crawl_site(job, deps, context) {
     const brandId = job.brandId;
@@ -85,6 +91,36 @@ export const HANDLERS: Record<JobKind, JobHandler> = {
   async build_brand_brain(job, deps, context) {
     // The same pipeline, entered after a crawl already exists.
     return HANDLERS.crawl_site(job, deps, context);
+  },
+
+  /** The no-website path: build the first Brand Profile from the Brand Builder answers. */
+  async build_brand_profile(job, deps, context) {
+    const brandId = job.brandId;
+    if (!brandId) throw new Error('build_brand_profile requires a brand.');
+    const businessName = str(job.payload, 'businessName');
+    const whatYouSell = str(job.payload, 'whatYouSell');
+    if (!businessName || !whatYouSell) throw new Error('A business name and what you sell are required.');
+
+    await deps.store.updateBrand(brandId, { status: 'analyzing', statusDetail: 'Building your profile' });
+    await context.progress(0.3, 'Building your profile');
+
+    const brain = await buildBrandFromProfile(deps.gateway, {
+      brandId,
+      businessName,
+      whatYouSell,
+      audience: str(job.payload, 'audience') ?? undefined,
+      desiredAction: str(job.payload, 'desiredAction') ?? undefined,
+      contactChannels: stringList(job.payload, 'contactChannels'),
+      brandFeel: str(job.payload, 'brandFeel') ?? undefined,
+      logoUrls: stringList(job.payload, 'logoUrls'),
+      imageUrls: stringList(job.payload, 'imageUrls'),
+    });
+    await deps.store.saveBrain(brain);
+
+    await context.progress(0.9, 'Finishing up');
+    await deps.store.updateBrand(brandId, { status: 'ready', statusDetail: null, name: businessName });
+
+    return { products: brain.products.length, completeness: brain.completeness };
   },
 
   async generate_content(job, deps, context) {
