@@ -1,0 +1,403 @@
+import { BRAND_COMPOSERS } from '@morrowlane/brand-engine';
+import {
+  CAMPAIGN_COMPOSERS,
+  fillMonth,
+  generateCampaignContent,
+  planCampaign,
+  scheduleCampaign,
+  scheduleContent,
+} from '@morrowlane/campaign-engine';
+import { generateContent, remixUrl, type AiGateway } from '@morrowlane/content-engine';
+import { crawlSinglePage, createHttpFetcher, type Fetcher } from '@morrowlane/crawl-engine';
+import type { DataStore } from '@morrowlane/database';
+import { applyInsights, computeInsights, performanceByContent, recordEvent } from '@morrowlane/analytics';
+import { publishPost, type SocialRegistry } from '@morrowlane/social';
+import type { Channel, Job, JobKind } from '@morrowlane/shared';
+import { NotFoundError, createLogger, isChannel, isContentFormat, normalizeUrl, nowIso } from '@morrowlane/shared';
+import type { StepContext } from './graph.js';
+import { runOnboarding } from './onboarding.js';
+
+const log = createLogger('agents:handlers');
+
+export interface HandlerDeps {
+  store: DataStore;
+  gateway: AiGateway;
+  social: SocialRegistry;
+  fetcher?: Fetcher;
+}
+
+export type JobHandler = (job: Job, deps: HandlerDeps, context: StepContext) => Promise<Record<string, unknown>>;
+
+/** Every composer the gateway needs. Registering one place avoids "no local composer" gaps. */
+export const ALL_COMPOSERS = { ...BRAND_COMPOSERS, ...CAMPAIGN_COMPOSERS };
+
+async function requireBrain(store: DataStore, brandId: string) {
+  const brain = await store.getBrain(brandId);
+  if (!brain) throw new NotFoundError('Brand profile. Run the website analysis first');
+  return brain;
+}
+
+function str(payload: Record<string, unknown>, key: string): string | null {
+  const value = payload[key];
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function int(payload: Record<string, unknown>, key: string, fallback: number): number {
+  const value = payload[key];
+  return typeof value === 'number' && Number.isFinite(value) ? Math.trunc(value) : fallback;
+}
+
+function channels(payload: Record<string, unknown>): Channel[] {
+  const value = payload['channels'];
+  if (!Array.isArray(value)) return [];
+  return value.filter((c): c is Channel => typeof c === 'string' && isChannel(c));
+}
+
+export const HANDLERS: Record<JobKind, JobHandler> = {
+  async crawl_site(job, deps, context) {
+    const brandId = job.brandId;
+    if (!brandId) throw new Error('crawl_site requires a brand.');
+    const brand = await deps.store.getBrand(brandId);
+    if (!brand) throw new NotFoundError('Brand');
+
+    const result = await runOnboarding(
+      deps,
+      { brandId, websiteUrl: str(job.payload, 'websiteUrl') ?? brand.websiteUrl, maxPages: int(job.payload, 'maxPages', 60) },
+      context,
+    );
+
+    if (result.failed.length > 0) throw new Error(result.failed[0]!.error);
+    return {
+      pages: result.state.summary?.pages.length ?? 0,
+      products: result.state.brain?.products.length ?? 0,
+      completeness: result.state.brain?.completeness ?? 0,
+    };
+  },
+
+  async build_brand_brain(job, deps, context) {
+    // The same pipeline, entered after a crawl already exists.
+    return HANDLERS.crawl_site(job, deps, context);
+  },
+
+  async generate_content(job, deps, context) {
+    const brandId = job.brandId;
+    if (!brandId) throw new Error('generate_content requires a brand.');
+    const brain = await requireBrain(deps.store, brandId);
+
+    const format = str(job.payload, 'format');
+    if (!format || !isContentFormat(format)) throw new Error(`"${format}" is not a content format Morrowlane produces.`);
+
+    await context.progress(0.2, `Writing ${format.replace(/_/g, ' ')}`);
+    const channelValue = str(job.payload, 'channel');
+
+    const insights = (await deps.store.listInsights(brandId)).filter((insight) => insight.applied);
+    const result = await generateContent(deps.gateway, {
+      brain,
+      format,
+      channel: channelValue && isChannel(channelValue) ? channelValue : undefined,
+      count: int(job.payload, 'count', 5),
+      instruction: str(job.payload, 'instruction'),
+      topic: str(job.payload, 'topic'),
+      productName: str(job.payload, 'productName'),
+      campaignId: str(job.payload, 'campaignId'),
+      insights: insights.map((insight) => insight.statement),
+      appliedInsightIds: insights.map((insight) => insight.id),
+    });
+
+    await context.progress(0.9, 'Saving');
+    await deps.store.saveContent(result.items);
+    return { contentIds: result.items.map((item) => item.id), count: result.items.length };
+  },
+
+  async remix_url(job, deps, context) {
+    const brandId = job.brandId;
+    if (!brandId) throw new Error('remix_url requires a brand.');
+    const brain = await requireBrain(deps.store, brandId);
+
+    const url = normalizeUrl(str(job.payload, 'url') ?? '');
+    if (!url) throw new Error('That does not look like a web address.');
+
+    await context.progress(0.15, 'Reading the page');
+    // Prefer the crawled copy; fetch live only when the page is new to us.
+    const page =
+      (await deps.store.getPageByUrl(brandId, url)) ??
+      (await crawlSinglePage(url, deps.fetcher ?? createHttpFetcher(), brandId));
+    if (!page) throw new Error(`That page could not be read: ${url}`);
+
+    await context.progress(0.35, 'Building the distribution tree');
+    const result = await remixUrl(deps.gateway, { brain, page, instruction: str(job.payload, 'instruction') });
+
+    await context.progress(0.9, 'Saving');
+    await deps.store.saveContent(result.items);
+    return {
+      contentIds: result.items.map((item) => item.id),
+      count: result.items.length,
+      breakdown: result.breakdown,
+    };
+  },
+
+  async plan_campaign(job, deps, context) {
+    const brandId = job.brandId;
+    if (!brandId) throw new Error('plan_campaign requires a brand.');
+    const brain = await requireBrain(deps.store, brandId);
+
+    await context.progress(0.15, 'Planning the narrative');
+    const campaign = await planCampaign(deps.gateway, {
+      brain,
+      goal: str(job.payload, 'goal') ?? 'Grow the business.',
+      productName: str(job.payload, 'productName'),
+      channels: channels(job.payload),
+      durationDays: int(job.payload, 'durationDays', 30),
+      startDate: str(job.payload, 'startDate') ?? undefined,
+    });
+    await deps.store.saveCampaign(campaign);
+
+    await context.progress(0.4, 'Writing the content');
+    const generated = await generateCampaignContent(deps.gateway, { brain, campaign });
+    await deps.store.saveContent(generated.items);
+
+    await context.progress(0.85, 'Filling the calendar');
+    const posts = scheduleCampaign(campaign, generated.items);
+    await deps.store.saveScheduledPosts(posts);
+    await deps.store.updateCampaign(campaign.id, { status: 'active' });
+
+    return {
+      campaignId: campaign.id,
+      phases: campaign.phases.length,
+      count: generated.items.length,
+      scheduled: posts.length,
+      errors: generated.errors,
+    };
+  },
+
+  async fill_calendar(job, deps, context) {
+    const brandId = job.brandId;
+    if (!brandId) throw new Error('fill_calendar requires a brand.');
+    const brain = await requireBrain(deps.store, brandId);
+
+    const days = int(job.payload, 'days', 30);
+    const requested = channels(job.payload);
+    // Default to the channels the brand has actually connected.
+    const connected = (await deps.store.listConnections(brandId))
+      .filter((connection) => connection.status === 'active')
+      .map((connection) => connection.channel);
+    const target = requested.length > 0 ? requested : connected.length > 0 ? connected : (['instagram'] as Channel[]);
+
+    const applied = (await deps.store.listInsights(brandId)).filter((insight) => insight.applied);
+    const preferredFormats = applyInsights(applied).preferredFormats;
+
+    await context.progress(0.2, 'Planning the month');
+    const result = await fillMonth(deps.gateway, {
+      brain,
+      channels: target,
+      days,
+      preferredFormats,
+    });
+    await deps.store.saveContent(result.items);
+
+    await context.progress(0.85, 'Filling the calendar');
+    const connectionByChannel = Object.fromEntries(
+      (await deps.store.listConnections(brandId)).map((connection) => [connection.channel, connection.id]),
+    ) as Partial<Record<Channel, string>>;
+
+    const posts = scheduleContent(result.items, {
+      startDate: str(job.payload, 'startDate') ?? nowIso(),
+      days,
+      connectionByChannel,
+    });
+    await deps.store.saveScheduledPosts(posts);
+
+    return {
+      count: result.items.length,
+      scheduled: posts.length,
+      plan: result.plan,
+      errors: result.errors,
+    };
+  },
+
+  async render_media(job, _deps) {
+    // Creative rendering runs in services/creative (ComfyUI) and services/video (Remotion).
+    // The handler exists so the queue shape is complete; it reports honestly until wired.
+    log.info('render_media requested', { jobId: job.id });
+    throw new Error(
+      'Media rendering is not wired up yet. Start services/creative and set CREATIVE_SERVICE_URL to enable it.',
+    );
+  },
+
+  async publish_post(job, deps, context) {
+    const postId = str(job.payload, 'scheduledPostId');
+    if (!postId) throw new Error('publish_post requires a scheduled post.');
+
+    const post = await deps.store.getScheduledPost(postId);
+    if (!post) throw new NotFoundError('Scheduled post');
+    const content = await deps.store.getContent(post.contentId);
+    if (!content) throw new NotFoundError('Content');
+
+    const connection = post.connectionId
+      ? await deps.store.getConnection(post.connectionId)
+      : (await deps.store.listConnections(post.brandId)).find((c) => c.channel === post.channel) ?? null;
+
+    if (!connection) {
+      await deps.store.updateScheduledPost(post.id, {
+        status: 'failed',
+        lastError: `No ${post.channel} account is connected.`,
+        attempts: post.attempts + 1,
+      });
+      throw new Error(`No ${post.channel} account is connected.`);
+    }
+
+    const secret = await deps.store.getConnectionSecret(connection.id);
+    if (!secret) throw new Error('The stored credentials for this connection could not be read.');
+
+    await context.progress(0.5, `Publishing to ${post.channel}`);
+    const media = await deps.store.listMedia(post.brandId);
+    const mediaUrls = content.mediaAssetIds
+      .map((id) => media.find((asset) => asset.id === id)?.url)
+      .filter((url): url is string => Boolean(url));
+
+    const result = await publishPost(deps.social, {
+      post,
+      content,
+      connection,
+      accessToken: secret.accessToken,
+      mediaUrls,
+    });
+
+    await deps.store.updateScheduledPost(post.id, result.post);
+
+    if (result.post.status === 'published') {
+      await deps.store.updateContent(content.id, { status: 'published' });
+      await deps.store.recordEvents([
+        recordEvent({
+          brandId: post.brandId,
+          contentId: content.id,
+          scheduledPostId: post.id,
+          channel: post.channel,
+          stage: 'impression',
+          value: 0,
+          metadata: { externalPostId: result.post.externalPostId },
+        }),
+      ]);
+      // Metrics are collected after the post has had time to accumulate them.
+      await deps.store.enqueueJob({
+        organizationId: job.organizationId,
+        brandId: post.brandId,
+        kind: 'collect_metrics',
+        payload: { scheduledPostId: post.id },
+        runAfter: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(),
+      });
+      return { published: true, externalPostId: result.post.externalPostId };
+    }
+
+    if (result.retry) {
+      await deps.store.enqueueJob({
+        organizationId: job.organizationId,
+        brandId: post.brandId,
+        kind: 'publish_post',
+        payload: { scheduledPostId: post.id },
+        runAfter: new Date(Date.now() + (result.retryAfterSeconds ?? 60) * 1000).toISOString(),
+      });
+      return { published: false, retrying: true, error: result.post.lastError };
+    }
+
+    throw new Error(result.post.lastError ?? 'Publishing failed.');
+  },
+
+  async collect_metrics(job, deps) {
+    const brandId = job.brandId;
+    if (!brandId) throw new Error('collect_metrics requires a brand.');
+
+    const postId = str(job.payload, 'scheduledPostId');
+    const posts = postId
+      ? [await deps.store.getScheduledPost(postId)].filter((p): p is NonNullable<typeof p> => p !== null)
+      : (await deps.store.queryScheduledPosts({ brandId, status: ['published'] }));
+
+    const collected: string[] = [];
+    for (const post of posts) {
+      if (!post.externalPostId || !post.connectionId) continue;
+      const connection = await deps.store.getConnection(post.connectionId);
+      const secret = connection ? await deps.store.getConnectionSecret(connection.id) : null;
+      if (!connection || !secret) continue;
+
+      const provider = deps.social.find(post.channel);
+      const analytics = await provider?.retrieveAnalytics(connection, secret.accessToken, post.externalPostId);
+      if (!analytics) continue;
+
+      await deps.store.saveMetrics([{ ...analytics, scheduledPostId: post.id, brandId }]);
+      // Metrics become attribution events so one funnel query covers every source.
+      await deps.store.recordEvents([
+        recordEvent({ brandId, contentId: post.contentId, scheduledPostId: post.id, channel: post.channel, stage: 'impression', value: analytics.impressions }),
+        recordEvent({ brandId, contentId: post.contentId, scheduledPostId: post.id, channel: post.channel, stage: 'engagement', value: analytics.engagements }),
+        recordEvent({ brandId, contentId: post.contentId, scheduledPostId: post.id, channel: post.channel, stage: 'click', value: analytics.clicks }),
+      ]);
+      collected.push(post.id);
+    }
+
+    return { collected: collected.length };
+  },
+
+  async scan_competitors(job, deps) {
+    const brandId = job.brandId;
+    if (!brandId) throw new Error('scan_competitors requires a brand.');
+    // Competitor crawling is queued per competitor by the scheduler; this handler
+    // exists so the kind is complete and reports what it did.
+    const competitors = await deps.store.listCompetitors(brandId);
+    return { competitors: competitors.length, scanned: 0 };
+  },
+
+  async scan_trends(job, deps) {
+    const brandId = job.brandId;
+    if (!brandId) throw new Error('scan_trends requires a brand.');
+    const trends = await deps.store.listTrends(brandId);
+    return { trends: trends.length };
+  },
+
+  async compute_insights(job, deps) {
+    const brandId = job.brandId;
+    if (!brandId) throw new Error('compute_insights requires a brand.');
+
+    const { items } = await deps.store.queryContent({ brandId, limit: 500 });
+    const posts = await deps.store.queryScheduledPosts({ brandId });
+    const events = await deps.store.listEvents(brandId);
+
+    const insights = computeInsights(brandId, performanceByContent(items, posts, events));
+    if (insights.length > 0) await deps.store.saveInsights(insights);
+    return { insights: insights.length };
+  },
+};
+
+/** Runs one claimed job and records its outcome. Never throws. */
+export async function runJob(job: Job, deps: HandlerDeps): Promise<Job> {
+  const handler = HANDLERS[job.kind];
+  const context: StepContext = {
+    async progress(fraction, label) {
+      await deps.store.updateJob(job.id, {
+        progress: Math.max(0, Math.min(1, fraction)),
+        progressLabel: label,
+      });
+    },
+  };
+
+  if (!handler) {
+    return deps.store.updateJob(job.id, {
+      status: 'failed',
+      error: `No handler is registered for job kind "${job.kind}".`,
+      finishedAt: nowIso(),
+    });
+  }
+
+  try {
+    const result = await handler(job, deps, context);
+    return await deps.store.updateJob(job.id, {
+      status: 'succeeded',
+      result,
+      progress: 1,
+      progressLabel: null,
+      finishedAt: nowIso(),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    log.warn('job failed', { jobId: job.id, kind: job.kind, error: message });
+    return deps.store.updateJob(job.id, { status: 'failed', error: message, finishedAt: nowIso() });
+  }
+}

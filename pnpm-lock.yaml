@@ -20,6 +20,9 @@ importers:
 
   packages/agents:
     dependencies:
+      '@morrowlane/analytics':
+        specifier: workspace:*
+        version: link:../analytics
       '@morrowlane/brand-engine':
         specifier: workspace:*
         version: link:../brand-engine
@@ -32,9 +35,15 @@ importers:
       '@morrowlane/crawl-engine':
         specifier: workspace:*
         version: link:../crawl-engine
+      '@morrowlane/database':
+        specifier: workspace:*
+        version: link:../database
       '@morrowlane/shared':
         specifier: workspace:*
         version: link:../shared
+      '@morrowlane/social':
+        specifier: workspace:*
+        version: link:../social
     devDependencies:
       typescript:
         specifier: ^5.7.2
