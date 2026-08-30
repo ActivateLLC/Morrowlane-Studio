@@ -17,17 +17,18 @@ export default async function BrandLayout({
   if (!brand || brand.organizationId !== session.organizationId) notFound();
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen flex-col lg:flex-row">
       <BrandSidebar brandId={brandId} brandName={brand.name} email={session.user.email} />
       <div className="min-w-0 flex-1">
         {brand.status !== 'ready' ? (
-          <div className="border-b border-line bg-surface px-6 py-2">
+          <div className="border-b border-line bg-surface px-4 py-2 lg:px-6">
             <Badge tone={brand.status === 'failed' ? 'critical' : 'accent'}>
               {brand.statusDetail ?? brand.status}
             </Badge>
           </div>
         ) : null}
-        <main className="mx-auto max-w-5xl px-6 py-8">{children}</main>
+        {/* Bottom padding clears the phone tab bar; gone on desktop. */}
+        <main className="mx-auto max-w-5xl px-4 pb-24 pt-6 lg:px-6 lg:py-8">{children}</main>
       </div>
     </div>
   );

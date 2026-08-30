@@ -55,7 +55,7 @@ export default async function IntelligencePage({ params }: { params: Promise<{ b
                         <p className="text-sm font-medium text-ink">{opportunity.headline}</p>
                       </div>
                       <p className="mt-1 text-[13px] text-ink-soft">{opportunity.reasoning}</p>
-                      <ul className="mt-2 space-y-0.5 text-[12px] text-ink-faint">
+                      <ul className="mt-2 space-y-0.5 break-words text-[12px] text-ink-faint">
                         {opportunity.evidence.map((line) => (
                           <li key={line}>• {line}</li>
                         ))}
@@ -97,7 +97,7 @@ export default async function IntelligencePage({ params }: { params: Promise<{ b
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-[13px] font-medium text-ink">{competitor.name}</p>
-                      <p className="text-[12px] text-ink-faint">
+                      <p className="break-words text-[12px] text-ink-faint">
                         {competitor.websiteUrl}
                         {competitor.lastCheckedAt ? ` · checked ${formatDateTime(competitor.lastCheckedAt)}` : ' · not checked yet'}
                       </p>

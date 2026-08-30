@@ -109,7 +109,7 @@ export default async function BrainPage({ params }: { params: Promise<{ brandId:
         </CardHeader>
         <CardBody className="grid gap-4 md:grid-cols-2">
           {brain.products.map((product) => (
-            <div key={product.id} className="rounded-lg border border-line p-4">
+            <div key={product.id} className="min-w-0 rounded-lg border border-line p-4">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-medium text-ink">{product.name}</p>
                 <Badge tone="neutral">{product.kind}</Badge>

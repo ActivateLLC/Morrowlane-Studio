@@ -44,7 +44,7 @@ export function Button({ variant = 'primary', size = 'md', className, ...props }
 }
 
 export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div {...props} className={cn('rounded-xl border border-line bg-surface shadow-card', className)} />;
+  return <div {...props} className={cn('min-w-0 rounded-xl border border-line bg-surface shadow-card', className)} />;
 }
 
 export function CardHeader({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
@@ -60,7 +60,7 @@ export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElem
     <input
       {...props}
       className={cn(
-        'h-10 w-full rounded-lg border border-line bg-white px-3 text-sm text-ink placeholder:text-ink-faint',
+        'h-11 w-full rounded-lg border border-line bg-white px-3 text-base text-ink placeholder:text-ink-faint sm:h-10 sm:text-sm',
         'focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20',
         className,
       )}
@@ -73,7 +73,7 @@ export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTex
     <textarea
       {...props}
       className={cn(
-        'w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink placeholder:text-ink-faint',
+        'w-full rounded-lg border border-line bg-white px-3 py-2 text-base text-ink placeholder:text-ink-faint sm:text-sm',
         'focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20',
         className,
       )}
@@ -86,7 +86,7 @@ export function Select({ className, ...props }: SelectHTMLAttributes<HTMLSelectE
     <select
       {...props}
       className={cn(
-        'h-10 w-full rounded-lg border border-line bg-white px-3 text-sm text-ink',
+        'h-11 w-full rounded-lg border border-line bg-white px-3 text-base text-ink sm:h-10 sm:text-sm',
         'focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20',
         className,
       )}

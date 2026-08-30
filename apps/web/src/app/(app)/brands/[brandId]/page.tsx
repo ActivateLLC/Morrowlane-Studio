@@ -117,7 +117,7 @@ export default async function BrandTodayPage({ params }: { params: Promise<{ bra
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-ink">{opportunity.headline}</p>
                       <p className="mt-0.5 text-[13px] text-ink-soft">{opportunity.reasoning}</p>
-                      <ul className="mt-2 space-y-0.5 text-[12px] text-ink-faint">
+                      <ul className="mt-2 space-y-0.5 break-words text-[12px] text-ink-faint">
                         {opportunity.evidence.slice(0, 3).map((line) => (
                           <li key={line}>• {line}</li>
                         ))}
@@ -137,7 +137,7 @@ export default async function BrandTodayPage({ params }: { params: Promise<{ bra
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <section>
+        <section className="min-w-0">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-ink">Upcoming posts</h2>
             <Link href={`/brands/${brandId}/calendar`} className="text-[13px] text-accent hover:underline">
@@ -168,7 +168,7 @@ export default async function BrandTodayPage({ params }: { params: Promise<{ bra
           </Card>
         </section>
 
-        <section>
+        <section className="min-w-0">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-ink">Recent content</h2>
             <Link href={`/brands/${brandId}/library`} className="text-[13px] text-accent hover:underline">

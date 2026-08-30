@@ -84,7 +84,7 @@ export default async function CampaignsPage({ params }: { params: Promise<{ bran
           </CardHeader>
           <CardBody>
             <p className="text-[13px] text-ink-soft">{campaign.narrative}</p>
-            <div className="mt-4 grid gap-2 sm:grid-cols-5">
+            <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
               {campaign.phases.map((phase) => (
                 <div key={phase.id} className="rounded-lg border border-line bg-surface-sunken p-3">
                   <p className="text-[12px] font-semibold text-ink">{phase.title}</p>

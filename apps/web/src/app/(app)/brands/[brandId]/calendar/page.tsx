@@ -38,12 +38,19 @@ export default async function CalendarPage({ params }: { params: Promise<{ brand
         }
       />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {days.map((day) => {
           const dayPosts = byDay.get(day) ?? [];
           const isToday = day === dayKey(start);
           return (
-            <Card key={day} className={isToday ? 'border-accent' : undefined}>
+            <Card
+              key={day}
+              className={[
+                isToday ? 'border-accent' : '',
+                // Empty days are noise on a phone; the grid shows them from sm up.
+                dayPosts.length === 0 && !isToday ? 'max-sm:hidden' : '',
+              ].join(' ')}
+            >
               <CardBody className="p-3">
                 <p className="mb-2 flex items-center justify-between text-[12px] font-semibold text-ink">
                   {new Date(`${day}T00:00:00Z`).toLocaleDateString('en-US', {

@@ -33,11 +33,11 @@ export default async function StudioPage({ params }: { params: Promise<{ brandId
               className="text-base"
               placeholder={`Promote our ${brain?.products[0]?.name ?? 'newest service'}.\nCreate a week of Instagram content.\nTurn https://… into a campaign.`}
             />
-            <div className="flex items-center justify-between">
-              <p className="text-[12px] text-ink-faint">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-[12px] text-ink-faint max-sm:order-2">
                 Try: “Generate 30 days of content”, “10 TikTok scripts about {brain?.terminology[0] ?? 'your product'}”.
               </p>
-              <Button type="submit" size="lg">
+              <Button type="submit" size="lg" className="max-sm:w-full">
                 Generate content
               </Button>
             </div>

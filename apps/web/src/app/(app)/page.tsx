@@ -42,7 +42,7 @@ export default async function HomePage() {
               Morrowlane reads the whole site — products, pricing, voice, FAQs, testimonials — and
               builds the brand profile everything else is generated from.
             </p>
-            <form action={addBrand} className="mt-6 flex gap-2">
+            <form action={addBrand} className="mt-6 flex flex-col gap-2 sm:flex-row">
               <input
                 name="websiteUrl"
                 placeholder="https://example.com"
@@ -50,7 +50,7 @@ export default async function HomePage() {
                 required
                 className="h-11 w-full rounded-lg border border-shell-line bg-shell px-3.5 text-sm text-shell-bright placeholder:text-shell-text/60 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
               />
-              <Button type="submit" size="lg" className="px-5">
+              <Button type="submit" size="lg" className="px-5 max-sm:w-full">
                 Analyze
               </Button>
             </form>
