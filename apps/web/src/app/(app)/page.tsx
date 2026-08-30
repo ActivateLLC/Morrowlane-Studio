@@ -1,13 +1,16 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { Badge, Button, Card, CardBody, EmptyState, Input, PageHeader } from '@morrowlane/ui';
+import { Badge, Button, Card, CardBody, Input, PageHeader } from '@morrowlane/ui';
 import { addBrand } from '@/server/actions';
 import { requireSession } from '@/server/session';
+import { Icon } from '@/components/icons';
+import { LogoMark } from '@/components/logo';
+import { TopBarPage } from '@/components/topbar';
 
 /**
  * The home screen opens with creation, never with analytics charts. With no brand yet
- * it is the onboarding question from the spec: "What's your website?". With brands it
- * routes into the newest one's workspace.
+ * it is the onboarding question from the spec, styled as the reference's dark modal:
+ * paste the site, hit Analyze. With brands it routes into the newest one's workspace.
  */
 export default async function HomePage() {
   const session = await requireSession();
@@ -18,28 +21,47 @@ export default async function HomePage() {
 
   if (brands.length === 0) {
     return (
-      <div className="mx-auto max-w-xl pt-16">
-        <div className="mb-8 text-center">
-          <h1 className="text-3xl font-semibold tracking-tight text-ink">What’s your website?</h1>
-          <p className="mt-2 text-sm text-ink-soft">
-            Paste it in. Morrowlane reads the whole site — products, pricing, voice, FAQs, testimonials —
-            and builds the brand profile everything else is generated from.
-          </p>
-        </div>
-        <Card>
-          <CardBody className="py-6">
-            <form action={addBrand} className="flex gap-2">
-              <Input name="websiteUrl" placeholder="https://example.com" autoFocus required />
-              <Button type="submit">Build my brand</Button>
+      <main className="flex min-h-screen items-center justify-center bg-shell px-4">
+        <div className="w-full max-w-lg">
+          <div className="mb-6 flex justify-center">
+            <span className="inline-flex items-center gap-2.5">
+              <LogoMark />
+              <span className="text-[15px] font-semibold text-shell-bright">
+                Morrowlane <span className="font-normal text-shell-text">Studio</span>
+              </span>
+            </span>
+          </div>
+          <div className="rounded-2xl border border-shell-line bg-shell-raised p-8 shadow-lifted">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-shell-hover text-accent">
+              <Icon name="globe" className="h-6 w-6" />
+            </div>
+            <h1 className="text-center text-xl font-semibold tracking-tight text-shell-bright">
+              What’s your website?
+            </h1>
+            <p className="mx-auto mt-2 max-w-sm text-center text-[13px] leading-relaxed text-shell-text">
+              Morrowlane reads the whole site — products, pricing, voice, FAQs, testimonials — and
+              builds the brand profile everything else is generated from.
+            </p>
+            <form action={addBrand} className="mt-6 flex gap-2">
+              <input
+                name="websiteUrl"
+                placeholder="https://example.com"
+                autoFocus
+                required
+                className="h-11 w-full rounded-lg border border-shell-line bg-shell px-3.5 text-sm text-shell-bright placeholder:text-shell-text/60 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+              />
+              <Button type="submit" size="lg" className="px-5">
+                Analyze
+              </Button>
             </form>
-          </CardBody>
-        </Card>
-      </div>
+          </div>
+        </div>
+      </main>
     );
   }
 
   return (
-    <div>
+    <TopBarPage email={session.user.email}>
       <PageHeader
         title="Your brands"
         description="Each brand has its own knowledge, content, calendar and analytics."
@@ -66,12 +88,12 @@ export default async function HomePage() {
             <form action={addBrand} className="flex gap-2">
               <Input name="websiteUrl" placeholder="https://example.com" required />
               <Button type="submit" variant="secondary">
-                Add
+                Analyze
               </Button>
             </form>
           </CardBody>
         </Card>
       </div>
-    </div>
+    </TopBarPage>
   );
 }

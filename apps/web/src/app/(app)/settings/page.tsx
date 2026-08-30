@@ -1,6 +1,7 @@
 import { Badge, Button, Card, CardBody, CardHeader, Input, PageHeader, Select } from '@morrowlane/ui';
 import { inviteTeammate, removeTeammate } from '@/server/actions';
 import { requireSession } from '@/server/session';
+import { TopBarPage } from '@/components/topbar';
 
 export default async function SettingsPage() {
   const session = await requireSession();
@@ -8,7 +9,8 @@ export default async function SettingsPage() {
   const members = await session.runtime.store.listMemberships(session.organizationId);
 
   return (
-    <div className="space-y-6">
+    <TopBarPage email={session.user.email}>
+      <div className="space-y-6">
       <PageHeader title="Settings" description={organization?.name ?? 'Workspace'} />
 
       <Card>
@@ -52,6 +54,7 @@ export default async function SettingsPage() {
           </div>
         </CardBody>
       </Card>
-    </div>
+      </div>
+    </TopBarPage>
   );
 }

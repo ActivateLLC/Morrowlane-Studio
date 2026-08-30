@@ -3,12 +3,14 @@ import { reanalyzeBrand } from '@/server/actions';
 import { requireBrand } from '@/server/session';
 import { EditableField } from './editable';
 import { updateBrainField } from '@/server/actions';
+import { BrandGraph } from './graph';
 
 /** Milestone 4: the extracted business, laid out for review and correction. */
 export default async function BrainPage({ params }: { params: Promise<{ brandId: string }> }) {
   const { brandId } = await params;
   const { runtime, brand } = await requireBrand(brandId);
   const brain = await runtime.store.getBrain(brandId);
+  const connections = await runtime.store.listConnections(brandId);
 
   if (!brain) {
     return (
@@ -33,6 +35,11 @@ export default async function BrainPage({ params }: { params: Promise<{ brandId:
             </Button>
           </form>
         }
+      />
+
+      <BrandGraph
+        brain={brain}
+        channels={connections.filter((c) => c.status === 'active').map((c) => c.channel)}
       />
 
       <Card>
