@@ -6,6 +6,25 @@ import { Alert, Button, Input, Label } from '@morrowlane/ui';
 
 type Mode = 'sign_in' | 'sign_up' | 'reset';
 
+/**
+ * Supabase auth errors are written for developers. Translate the ones a real person
+ * actually hits into what they should do next — especially the shared-SMTP rate limit,
+ * which reads like a system fault but just means confirmation email is throttled.
+ */
+function friendlyAuthError(message: string): string {
+  const text = message.toLowerCase();
+  if (text.includes('rate limit')) {
+    return 'Too many confirmation emails were sent from this project in the last hour. Wait an hour and try again, or turn off email confirmation (or add custom SMTP) in Supabase.';
+  }
+  if (text.includes('invalid login credentials')) return 'That email and password do not match an account.';
+  if (text.includes('already registered') || text.includes('already been registered')) {
+    return 'An account already exists for that email. Sign in instead, or reset the password.';
+  }
+  if (text.includes('email not confirmed')) return 'This account still needs confirming. Check your inbox for the link.';
+  if (text.includes('password')) return message; // Supabase's password rules are already clear.
+  return message;
+}
+
 /** Email/password auth against Supabase, with account creation and password reset. */
 export function SupabaseSignIn() {
   const [mode, setMode] = useState<Mode>('sign_in');
@@ -43,13 +62,13 @@ export function SupabaseSignIn() {
       if (authError) throw authError;
 
       if (mode === 'sign_up') {
-        setNotice('Account created. If confirmation is on, check your inbox; otherwise sign in.');
+        setNotice('Account created. If a confirmation email was sent, open its link first — then sign in.');
         setMode('sign_in');
         return;
       }
       window.location.href = '/';
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Something went wrong.');
+      setError(caught instanceof Error ? friendlyAuthError(caught.message) : 'Something went wrong.');
     } finally {
       setBusy(false);
     }
