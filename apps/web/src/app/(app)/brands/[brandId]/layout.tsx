@@ -18,6 +18,13 @@ export default async function BrandLayout({
 
   return (
     <div className="flex min-h-screen flex-col lg:flex-row">
+      {/* Eleven nav links sit before the content on every page; this is the way past them. */}
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-accent-strong focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white"
+      >
+        Skip to content
+      </a>
       <BrandSidebar brandId={brandId} brandName={brand.name} email={session.user.email} />
       <div className="min-w-0 flex-1">
         {brand.status !== 'ready' ? (
@@ -28,7 +35,9 @@ export default async function BrandLayout({
           </div>
         ) : null}
         {/* Bottom padding clears the phone tab bar; gone on desktop. */}
-        <main className="anim-rise mx-auto max-w-5xl px-4 pb-24 pt-6 lg:px-6 lg:py-8">{children}</main>
+        <main id="main" tabIndex={-1} className="anim-rise mx-auto max-w-5xl px-4 pb-24 pt-6 lg:px-6 lg:py-8">
+          {children}
+        </main>
       </div>
     </div>
   );

@@ -10,16 +10,19 @@ type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 type Size = 'sm' | 'md' | 'lg';
 
 const VARIANTS: Record<Variant, string> = {
-  primary: 'bg-accent text-white hover:bg-accent-strong disabled:bg-accent/50',
+  // accent-strong, not accent: white on #0d9488 measures 3.74:1, below AA.
+  primary: 'bg-accent-strong text-white hover:bg-accent-deep disabled:bg-accent-strong/50',
   secondary: 'bg-white text-ink border border-line hover:bg-surface-sunken disabled:text-ink-faint',
   ghost: 'text-ink-soft hover:bg-surface-sunken hover:text-ink',
   danger: 'bg-critical text-white hover:opacity-90',
 };
 
+// Touch first: every control clears the 44px target on phones and tightens up from
+// `lg` where a mouse is doing the pointing.
 const SIZES: Record<Size, string> = {
-  sm: 'h-8 px-3 text-[13px]',
-  md: 'h-10 px-4 text-sm',
-  lg: 'h-12 px-6 text-base',
+  sm: 'min-h-11 px-3 text-[13px] lg:min-h-8',
+  md: 'min-h-11 px-4 text-sm lg:min-h-10',
+  lg: 'min-h-12 px-6 text-base',
 };
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -167,8 +170,15 @@ export function ProgressBar({ value, label }: { value: number; label?: string })
 }
 
 export function Alert({ tone = 'critical', title, children }: { tone?: Tone; title: string; children?: ReactNode }) {
+  // Alerts appear in response to an action, so they must be announced. Anything that is
+  // not good news interrupts; a success is polite.
+  const assertive = tone === 'critical' || tone === 'caution';
   return (
-    <div className={cn('rounded-lg border px-4 py-3 text-sm', TONES[tone])}>
+    <div
+      role={assertive ? 'alert' : 'status'}
+      aria-live={assertive ? 'assertive' : 'polite'}
+      className={cn('rounded-lg border px-4 py-3 text-sm', TONES[tone])}
+    >
       <p className="font-medium">{title}</p>
       {children ? <div className="mt-1 opacity-90">{children}</div> : null}
     </div>

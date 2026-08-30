@@ -8,6 +8,7 @@ import { applyInsights } from '@morrowlane/analytics';
 import { runJob } from '@morrowlane/agents';
 import {
   ValidationError,
+  createLogger,
   getCampaignOutcome,
   isChannel,
   isContentFormat,
@@ -18,7 +19,19 @@ import {
   type Channel,
   type ContentFormat,
 } from '@morrowlane/shared';
-import { DEMO_COOKIE_NAME, encodeDemoSession, ensureDemoSeed, requireBrand, requireSession, supabaseConfigured } from './session.js';
+import {
+  DEMO_COOKIE_NAME,
+  encodeDemoSession,
+  ensureDemoSeed,
+  requireBrandAdmin,
+  requireBrandWrite,
+  requireOrgAdmin,
+  requireOrgWrite,
+  requireSession,
+  supabaseConfigured,
+} from './session.js';
+
+const log = createLogger('web:actions');
 
 /**
  * Every write in the product. Jobs are enqueued and then run inline when no separate
@@ -74,7 +87,7 @@ async function fileToDataUrl(file: File, maxBytes: number): Promise<string | nul
  * Brand Brain in the same system, editable and ready to generate against.
  */
 export async function startBrandBuilder(formData: FormData) {
-  const session = await requireSession();
+  const session = await requireOrgWrite();
 
   const businessName = String(formData.get('businessName') ?? '').trim();
   const whatYouSell = String(formData.get('whatYouSell') ?? '').trim();
@@ -119,7 +132,7 @@ export async function startBrandBuilder(formData: FormData) {
 }
 
 export async function addBrand(formData: FormData) {
-  const session = await requireSession();
+  const session = await requireOrgWrite();
   const raw = String(formData.get('websiteUrl') ?? '');
   const websiteUrl = normalizeUrl(raw);
   if (!websiteUrl) {
@@ -145,8 +158,28 @@ export async function addBrand(formData: FormData) {
   redirect(`/brands/${brand.id}`);
 }
 
+/** A failed analysis is often just the wrong address. Update it and try again. */
+export async function retryWithNewAddress(brandId: string, formData: FormData) {
+  const { organizationId, runtime } = await requireBrandWrite(brandId);
+  const raw = String(formData.get('websiteUrl') ?? '');
+  const websiteUrl = normalizeUrl(raw);
+  if (!websiteUrl) throw new ValidationError(`"${raw}" does not look like a website address.`);
+
+  await runtime.store.updateBrand(brandId, { websiteUrl, status: 'draft', statusDetail: null });
+  await enqueueAndMaybeRun({ organizationId, brandId, kind: 'crawl_site', payload: { websiteUrl } });
+  revalidatePath(`/brands/${brandId}`);
+}
+
+/** The way out of a dead brand — a failed crawl was previously permanent. */
+export async function deleteBrandAction(brandId: string) {
+  const { runtime } = await requireBrandAdmin(brandId);
+  await runtime.store.deleteBrand(brandId);
+  revalidatePath('/');
+  redirect('/?all=1');
+}
+
 export async function reanalyzeBrand(brandId: string) {
-  const { brand, organizationId } = await requireBrand(brandId);
+  const { brand, organizationId } = await requireBrandWrite(brandId);
   await enqueueAndMaybeRun({
     organizationId,
     brandId: brand.id,
@@ -158,7 +191,7 @@ export async function reanalyzeBrand(brandId: string) {
 
 /** Editing a Brand Brain field locks it, so the next analysis cannot overwrite it. */
 export async function updateBrainField(brandId: string, path: string, value: string) {
-  const { runtime } = await requireBrand(brandId);
+  const { runtime } = await requireBrandWrite(brandId);
   const brain = await runtime.store.getBrain(brandId);
   if (!brain) throw new ValidationError('This brand has not been analysed yet.');
 
@@ -187,7 +220,7 @@ export async function updateBrainField(brandId: string, path: string, value: str
 /* ------------------------------ Studio --------------------------------- */
 
 export async function runStudio(brandId: string, formData: FormData) {
-  const { organizationId } = await requireBrand(brandId);
+  const { organizationId } = await requireBrandWrite(brandId);
   const instruction = String(formData.get('instruction') ?? '').trim();
   if (!instruction) throw new ValidationError('Tell Morrowlane what you want to create.');
 
@@ -244,7 +277,7 @@ export async function runStudio(brandId: string, formData: FormData) {
 }
 
 export async function generateFormat(brandId: string, formData: FormData) {
-  const { organizationId } = await requireBrand(brandId);
+  const { organizationId } = await requireBrandWrite(brandId);
   const format = String(formData.get('format') ?? '');
   if (!isContentFormat(format)) throw new ValidationError('Choose a content format.');
 
@@ -266,7 +299,7 @@ export async function generateFormat(brandId: string, formData: FormData) {
 }
 
 export async function remix(brandId: string, formData: FormData) {
-  const { organizationId } = await requireBrand(brandId);
+  const { organizationId } = await requireBrandWrite(brandId);
   const url = normalizeUrl(String(formData.get('url') ?? ''));
   if (!url) throw new ValidationError('Paste a page address to remix.');
 
@@ -284,7 +317,7 @@ export async function remix(brandId: string, formData: FormData) {
 /* ----------------------------- Campaigns -------------------------------- */
 
 export async function createCampaign(brandId: string, formData: FormData) {
-  const { organizationId } = await requireBrand(brandId);
+  const { organizationId } = await requireBrandWrite(brandId);
   const goal = String(formData.get('goal') ?? '').trim();
   if (!goal) throw new ValidationError('Describe what this campaign should achieve.');
 
@@ -313,7 +346,7 @@ export async function createCampaign(brandId: string, formData: FormData) {
  * plan is approved. Runs inline in dev so we can land straight on the review screen.
  */
 export async function startGuidedCampaign(brandId: string, formData: FormData) {
-  const { organizationId } = await requireBrand(brandId);
+  const { organizationId } = await requireBrandWrite(brandId);
 
   const outcomeId = String(formData.get('outcome') ?? '');
   const outcome = getCampaignOutcome(outcomeId);
@@ -349,7 +382,7 @@ export async function startGuidedCampaign(brandId: string, formData: FormData) {
  * that breaks a brand rule is left in review and reported back, never silently published.
  */
 export async function approvePlan(brandId: string, campaignId: string) {
-  const { organizationId, runtime } = await requireBrand(brandId);
+  const { organizationId, runtime } = await requireBrandWrite(brandId);
   const campaign = await runtime.store.getCampaign(campaignId);
   if (!campaign || campaign.brandId !== brandId) throw new ValidationError('That campaign is not in this brand.');
 
@@ -377,8 +410,72 @@ export async function approvePlan(brandId: string, campaignId: string) {
   redirect(`/brands/${brandId}/ready?campaign=${campaignId}`);
 }
 
+/** Approves just the pieces the reviewer selected, so approval is many small decisions. */
+export async function approveSelected(brandId: string, contentIds: string[]) {
+  const { runtime } = await requireBrandWrite(brandId);
+  if (contentIds.length === 0) throw new ValidationError('Select something to approve first.');
+
+  let approved = 0;
+  let blocked = 0;
+  for (const contentId of contentIds) {
+    const item = await runtime.store.getContent(contentId);
+    if (!item || item.brandId !== brandId) continue;
+    if (item.violations.some((v) => v.severity === 'error')) {
+      blocked += 1;
+      continue;
+    }
+    await runtime.store.updateContent(contentId, { status: 'approved' });
+    approved += 1;
+  }
+
+  revalidatePath(`/brands/${brandId}/library`);
+  if (blocked > 0 && approved === 0) {
+    throw new ValidationError('Everything you selected breaks a brand rule. Fix those pieces first.');
+  }
+  return { approved, blocked };
+}
+
+/** Removes pieces from a plan before it is scheduled. */
+export async function removeSelected(brandId: string, contentIds: string[]) {
+  const { runtime } = await requireBrandWrite(brandId);
+  for (const contentId of contentIds) {
+    const item = await runtime.store.getContent(contentId);
+    if (!item || item.brandId !== brandId) continue;
+    await runtime.store.deleteContent(contentId);
+  }
+  revalidatePath(`/brands/${brandId}/library`);
+}
+
+/**
+ * The escape hatch. Approving a plan schedules dozens of posts at once; until now the
+ * only way back was to expand and delete each one. This cancels every post in the
+ * campaign that has not published yet, in one call, and returns the campaign to a plan.
+ */
+export async function pauseCampaign(brandId: string, campaignId: string) {
+  const { runtime } = await requireBrandWrite(brandId);
+  const campaign = await runtime.store.getCampaign(campaignId);
+  if (!campaign || campaign.brandId !== brandId) throw new ValidationError('That campaign is not in this brand.');
+
+  const { items } = await runtime.store.queryContent({ brandId, campaignId, limit: 500 });
+  const contentIds = new Set(items.map((item) => item.id));
+  const posts = await runtime.store.queryScheduledPosts({ brandId });
+
+  let cancelled = 0;
+  for (const post of posts) {
+    // Published posts are already out in the world; only future ones can be stopped.
+    if (!contentIds.has(post.contentId) || post.status === 'published') continue;
+    await runtime.store.updateScheduledPost(post.id, { status: 'cancelled' });
+    cancelled += 1;
+  }
+  await runtime.store.updateCampaign(campaignId, { status: 'ready' });
+
+  log.info('campaign paused', { campaignId, cancelled });
+  revalidatePath(`/brands/${brandId}/campaigns/${campaignId}`);
+  revalidatePath(`/brands/${brandId}/calendar`);
+}
+
 export async function updateCampaignStatus(brandId: string, campaignId: string, status: string) {
-  const { runtime } = await requireBrand(brandId);
+  const { runtime } = await requireBrandWrite(brandId);
   const campaign = await runtime.store.getCampaign(campaignId);
   if (!campaign || campaign.brandId !== brandId) throw new ValidationError('That campaign is not in this brand.');
   if (!['active', 'complete', 'archived', 'ready'].includes(status)) {
@@ -392,7 +489,7 @@ export async function updateCampaignStatus(brandId: string, campaignId: string, 
 /* ------------------------------ Calendar -------------------------------- */
 
 export async function fillMonthAction(brandId: string) {
-  const { organizationId } = await requireBrand(brandId);
+  const { organizationId } = await requireBrandWrite(brandId);
   await enqueueAndMaybeRun({
     organizationId,
     brandId,
@@ -406,7 +503,7 @@ export async function fillMonthAction(brandId: string) {
 }
 
 export async function reschedulePost(brandId: string, postId: string, scheduledFor: string) {
-  const { runtime } = await requireBrand(brandId);
+  const { runtime } = await requireBrandWrite(brandId);
   const post = await runtime.store.getScheduledPost(postId);
   if (!post || post.brandId !== brandId) throw new ValidationError('That post is not on this calendar.');
   if (post.status === 'published') throw new ValidationError('A published post cannot be rescheduled.');
@@ -416,7 +513,7 @@ export async function reschedulePost(brandId: string, postId: string, scheduledF
 }
 
 export async function cancelPost(brandId: string, postId: string) {
-  const { runtime } = await requireBrand(brandId);
+  const { runtime } = await requireBrandWrite(brandId);
   const post = await runtime.store.getScheduledPost(postId);
   if (!post || post.brandId !== brandId) throw new ValidationError('That post is not on this calendar.');
   await runtime.store.updateScheduledPost(postId, { status: 'cancelled' });
@@ -424,7 +521,7 @@ export async function cancelPost(brandId: string, postId: string) {
 }
 
 export async function publishNow(brandId: string, postId: string) {
-  const { organizationId, runtime } = await requireBrand(brandId);
+  const { organizationId, runtime } = await requireBrandWrite(brandId);
   const post = await runtime.store.getScheduledPost(postId);
   if (!post || post.brandId !== brandId) throw new ValidationError('That post is not on this calendar.');
 
@@ -441,7 +538,7 @@ export async function publishNow(brandId: string, postId: string) {
 /* ------------------------------- Content -------------------------------- */
 
 export async function approveContent(brandId: string, contentId: string) {
-  const { runtime } = await requireBrand(brandId);
+  const { runtime } = await requireBrandWrite(brandId);
   const item = await runtime.store.getContent(contentId);
   if (!item || item.brandId !== brandId) throw new ValidationError('That content is not in this brand.');
 
@@ -453,7 +550,7 @@ export async function approveContent(brandId: string, contentId: string) {
 }
 
 export async function updateContentBody(brandId: string, contentId: string, body: string) {
-  const { runtime } = await requireBrand(brandId);
+  const { runtime } = await requireBrandWrite(brandId);
   const brain = await runtime.store.getBrain(brandId);
   const item = await runtime.store.getContent(contentId);
   if (!item || item.brandId !== brandId) throw new ValidationError('That content is not in this brand.');
@@ -482,7 +579,7 @@ export async function updateContentBody(brandId: string, contentId: string, body
 }
 
 export async function scheduleContentItem(brandId: string, contentId: string, scheduledFor: string) {
-  const { runtime } = await requireBrand(brandId);
+  const { runtime } = await requireBrandWrite(brandId);
   const item = await runtime.store.getContent(contentId);
   if (!item || item.brandId !== brandId) throw new ValidationError('That content is not in this brand.');
   if (item.violations.some((v) => v.severity === 'error')) {
@@ -514,7 +611,7 @@ export async function scheduleContentItem(brandId: string, contentId: string, sc
 }
 
 export async function duplicateContent(brandId: string, contentId: string) {
-  const { runtime } = await requireBrand(brandId);
+  const { runtime } = await requireBrandWrite(brandId);
   const item = await runtime.store.getContent(contentId);
   if (!item || item.brandId !== brandId) throw new ValidationError('That content is not in this brand.');
 
@@ -535,7 +632,7 @@ export async function duplicateContent(brandId: string, contentId: string) {
 
 /** Three fresh takes on the same idea, linked back to this item for the learning loop. */
 export async function generateVariants(brandId: string, contentId: string) {
-  const { organizationId, runtime } = await requireBrand(brandId);
+  const { organizationId, runtime } = await requireBrandWrite(brandId);
   const item = await runtime.store.getContent(contentId);
   if (!item || item.brandId !== brandId) throw new ValidationError('That content is not in this brand.');
 
@@ -559,7 +656,7 @@ export async function generateVariants(brandId: string, contentId: string) {
 
 /** Renders the creatives for an image-format piece: slides, quote cards, infographics. */
 export async function renderMedia(brandId: string, contentId: string) {
-  const { organizationId, runtime } = await requireBrand(brandId);
+  const { organizationId, runtime } = await requireBrandWrite(brandId);
   const item = await runtime.store.getContent(contentId);
   if (!item || item.brandId !== brandId) throw new ValidationError('That content is not in this brand.');
 
@@ -573,7 +670,7 @@ export async function renderMedia(brandId: string, contentId: string) {
 }
 
 export async function deleteContentItem(brandId: string, contentId: string) {
-  const { runtime } = await requireBrand(brandId);
+  const { runtime } = await requireBrandWrite(brandId);
   const item = await runtime.store.getContent(contentId);
   if (!item || item.brandId !== brandId) throw new ValidationError('That content is not in this brand.');
   await runtime.store.deleteContent(contentId);
@@ -583,7 +680,7 @@ export async function deleteContentItem(brandId: string, contentId: string) {
 /* ----------------------------- Intelligence ----------------------------- */
 
 export async function addCompetitor(brandId: string, formData: FormData) {
-  const { runtime } = await requireBrand(brandId);
+  const { runtime } = await requireBrandWrite(brandId);
   const websiteUrl = normalizeUrl(String(formData.get('websiteUrl') ?? ''));
   if (!websiteUrl) throw new ValidationError('Paste a competitor website address.');
 
@@ -602,7 +699,7 @@ export async function addCompetitor(brandId: string, formData: FormData) {
 }
 
 export async function removeCompetitor(brandId: string, competitorId: string) {
-  const { runtime } = await requireBrand(brandId);
+  const { runtime } = await requireBrandWrite(brandId);
   const owned = (await runtime.store.listCompetitors(brandId)).some((c) => c.id === competitorId);
   if (!owned) throw new ValidationError('That competitor is not tracked by this brand.');
   await runtime.store.deleteCompetitor(competitorId);
@@ -610,7 +707,7 @@ export async function removeCompetitor(brandId: string, competitorId: string) {
 }
 
 export async function applyInsight(brandId: string, insightId: string) {
-  const { runtime } = await requireBrand(brandId);
+  const { runtime } = await requireBrandWrite(brandId);
   const owned = (await runtime.store.listInsights(brandId)).some((i) => i.id === insightId);
   if (!owned) throw new ValidationError('That insight is not in this brand.');
   await runtime.store.updateInsight(insightId, { applied: true });
@@ -618,7 +715,7 @@ export async function applyInsight(brandId: string, insightId: string) {
 }
 
 export async function unapplyInsight(brandId: string, insightId: string) {
-  const { runtime } = await requireBrand(brandId);
+  const { runtime } = await requireBrandWrite(brandId);
   const owned = (await runtime.store.listInsights(brandId)).some((i) => i.id === insightId);
   if (!owned) throw new ValidationError('That insight is not in this brand.');
   await runtime.store.updateInsight(insightId, { applied: false });
@@ -626,14 +723,14 @@ export async function unapplyInsight(brandId: string, insightId: string) {
 }
 
 export async function recomputeInsights(brandId: string) {
-  const { organizationId } = await requireBrand(brandId);
+  const { organizationId } = await requireBrandWrite(brandId);
   await enqueueAndMaybeRun({ organizationId, brandId, kind: 'compute_insights', payload: {} });
   revalidatePath(`/brands/${brandId}/analytics`);
 }
 
 /** Runs an opportunity's one-click action. This is the whole point of the card. */
 export async function actOnOpportunity(brandId: string, kind: string, payload: Record<string, unknown>) {
-  const { organizationId } = await requireBrand(brandId);
+  const { organizationId } = await requireBrandWrite(brandId);
 
   if (kind === 'generate_campaign') {
     await enqueueAndMaybeRun({
@@ -673,39 +770,94 @@ export async function actOnOpportunity(brandId: string, kind: string, payload: R
 /* ----------------------------- Connections ------------------------------ */
 
 export async function connectDemoAccount(brandId: string, channel: string) {
-  const { runtime } = await requireBrand(brandId);
+  const { runtime } = await requireBrandAdmin(brandId);
   if (!isChannel(channel)) throw new ValidationError('That is not a channel Morrowlane publishes to.');
+  if (!runtime.demoMode) {
+    throw new ValidationError('Sample accounts only exist in the demo workspace. Connect a real account instead.');
+  }
 
   const provider = runtime.social.find(channel);
   if (!provider) throw new ValidationError(`Morrowlane has no adapter for ${channel}.`);
-  if (provider.configured && !runtime.demoMode) {
-    throw new ValidationError(`${provider.label} is configured for real OAuth. Use Connect instead.`);
-  }
 
-  const account = await provider.exchange({ code: 'demo', redirectUri: 'demo' });
+  // The sample is fabricated here rather than via provider.exchange(): the real OAuth
+  // adapters (rightly) refuse a fake code, and a sample must never depend on them.
   const { newId, nowIso } = await import('@morrowlane/shared');
-
   await runtime.store.saveConnection(
     {
       id: newId('connection'),
       brandId,
       channel,
-      displayName: account.displayName,
-      externalAccountId: account.externalAccountId,
+      displayName: `@yourbrand · sample`,
+      externalAccountId: `demo-${channel}`,
       status: 'active',
-      scopes: account.scopes,
-      expiresAt: account.expiresAt,
+      scopes: ['publish'],
+      expiresAt: null,
       lastValidatedAt: nowIso(),
       createdAt: nowIso(),
     },
-    { accessToken: account.accessToken, refreshToken: account.refreshToken, metadata: account.metadata },
+    { accessToken: `demo-${channel}-token`, refreshToken: null, metadata: { demo: true } },
   );
 
   revalidatePath(`/brands/${brandId}/connections`);
 }
 
+/**
+ * Bluesky's real connection: a handle plus an app password exchanged for a session over
+ * the AT Protocol — no redirect flow. Returns a result instead of throwing, because in
+ * production Next redacts thrown server-action messages and the form needs the reason.
+ */
+export async function connectBluesky(
+  brandId: string,
+  input: { identifier: string; appPassword: string },
+): Promise<{ ok: boolean; error?: string }> {
+  const { runtime } = await requireBrandAdmin(brandId);
+  const identifier = input.identifier.trim().replace(/^@/, '');
+  if (!identifier || !input.appPassword.trim()) {
+    return { ok: false, error: 'Enter your Bluesky handle and an app password.' };
+  }
+
+  try {
+    const { createBlueskySession } = await import('@morrowlane/social');
+    const account = await createBlueskySession(identifier, input.appPassword.trim());
+    const { newId, nowIso } = await import('@morrowlane/shared');
+
+    await runtime.store.saveConnection(
+      {
+        id: newId('connection'),
+        brandId,
+        channel: 'bluesky',
+        displayName: account.displayName,
+        externalAccountId: account.externalAccountId,
+        status: 'active',
+        scopes: account.scopes,
+        expiresAt: account.expiresAt,
+        lastValidatedAt: nowIso(),
+        createdAt: nowIso(),
+      },
+      { accessToken: account.accessToken, refreshToken: account.refreshToken, metadata: account.metadata },
+    );
+
+    revalidatePath(`/brands/${brandId}/connections`);
+    return { ok: true };
+  } catch (caught) {
+    const message = caught instanceof Error ? caught.message : 'Bluesky did not accept those details.';
+    return { ok: false, error: /401|auth/i.test(message) ? 'Bluesky did not accept that handle and app password.' : message };
+  }
+}
+
+/**
+ * Checks every connected account's token before it silently lapses. Social platforms do
+ * not warn you when a token expires — posts just stop going out — so this is what lets
+ * the workspace find out ahead of a campaign rather than after it fails.
+ */
+export async function checkConnections(brandId: string) {
+  const { organizationId } = await requireBrandWrite(brandId);
+  await enqueueAndMaybeRun({ organizationId, brandId, kind: 'validate_connections', payload: {} });
+  revalidatePath(`/brands/${brandId}/connections`);
+}
+
 export async function disconnectAccount(brandId: string, connectionId: string) {
-  const { runtime } = await requireBrand(brandId);
+  const { runtime } = await requireBrandAdmin(brandId);
   const owned = (await runtime.store.listConnections(brandId)).some((c) => c.id === connectionId);
   if (!owned) throw new ValidationError('That connection is not in this brand.');
   await runtime.store.deleteConnection(connectionId);
@@ -715,7 +867,7 @@ export async function disconnectAccount(brandId: string, connectionId: string) {
 /* -------------------------------- Team ---------------------------------- */
 
 export async function inviteTeammate(formData: FormData) {
-  const session = await requireSession();
+  const session = await requireOrgAdmin();
   const email = String(formData.get('email') ?? '').trim();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new ValidationError('Enter a valid email address.');
 
@@ -729,7 +881,7 @@ export async function inviteTeammate(formData: FormData) {
 }
 
 export async function removeTeammate(membershipId: string) {
-  const session = await requireSession();
+  const session = await requireOrgAdmin();
   const members = await session.runtime.store.listMemberships(session.organizationId);
   const target = members.find((member) => member.id === membershipId);
   if (!target) throw new ValidationError('That member is not in your workspace.');

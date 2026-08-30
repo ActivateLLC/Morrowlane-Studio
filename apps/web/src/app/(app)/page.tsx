@@ -6,18 +6,22 @@ import { requireSession } from '@/server/session';
 import { Icon } from '@/components/icons';
 import { LogoMark } from '@/components/logo';
 import { TopBarPage } from '@/components/topbar';
+import { SubmitButton } from '@/components/submit-button';
 
 /**
  * The home screen opens with creation, never with analytics charts. With no brand yet
  * it is the onboarding question from the spec, styled as the reference's dark modal:
  * paste the site, hit Analyze. With brands it routes into the newest one's workspace.
  */
-export default async function HomePage() {
+export default async function HomePage({ searchParams }: { searchParams: Promise<{ all?: string }> }) {
   const session = await requireSession();
+  const { all } = await searchParams;
   const brands = await session.runtime.store.listBrands(session.organizationId);
 
-  // One brand is the overwhelmingly common case; take the user straight to work.
-  if (brands.length === 1) redirect(`/brands/${brands[0]!.id}`);
+  // One brand is the overwhelmingly common case; take the user straight to work —
+  // unless they explicitly asked for the list (?all=1), which is how the sidebar's
+  // "Switch brand" escapes what used to be a redirect loop.
+  if (brands.length === 1 && !all) redirect(`/brands/${brands[0]!.id}`);
 
   if (brands.length === 0) {
     return (
@@ -32,7 +36,7 @@ export default async function HomePage() {
             </span>
           </div>
           <div className="rounded-2xl border border-shell-line bg-shell-raised p-8 shadow-lifted">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-shell-hover text-accent">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-shell-hover text-accent-strong">
               <Icon name="globe" className="h-6 w-6" />
             </div>
             <h1 className="text-center text-xl font-semibold tracking-tight text-shell-bright">
@@ -50,9 +54,9 @@ export default async function HomePage() {
                 required
                 className="h-11 w-full rounded-lg border border-shell-line bg-shell px-3.5 text-sm text-shell-bright placeholder:text-shell-text/60 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
               />
-              <Button type="submit" size="lg" className="px-5 max-sm:w-full">
+              <SubmitButton size="lg" className="px-5 max-sm:w-full" pendingLabel="Reading your site…" hint="This usually takes under a minute.">
                 Analyze
-              </Button>
+              </SubmitButton>
             </form>
             <div className="mt-5 flex items-center gap-3 text-[11px] uppercase tracking-wide text-shell-text/60">
               <span className="h-px flex-1 bg-shell-line" />
@@ -102,6 +106,9 @@ export default async function HomePage() {
                 Analyze
               </Button>
             </form>
+            <Link href="/new" className="mt-3 inline-block text-[13px] font-medium text-accent-strong hover:underline">
+              No website? Answer a few questions instead →
+            </Link>
           </CardBody>
         </Card>
       </div>

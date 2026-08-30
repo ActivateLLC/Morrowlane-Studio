@@ -61,3 +61,12 @@ above. Enable email auth in Authentication settings.
 3. Vercel with env (including `MORROWLANE_WORKER=external`).
 4. Add each network's OAuth credentials as you register developer apps; unconfigured
    networks are simply hidden from the Connect screen.
+
+## Crawler service (optional)
+
+The Crawl4AI service (`services/crawler`) escalates crawling for JavaScript-rendered
+sites. It bundles a headless Chromium, so it must run as a container —
+`RAILWAY_DOCKERFILE_PATH=Dockerfile.crawler` on Railway — and can never deploy as a
+Vercel serverless function (the bundle exceeds the function size limit by design).
+Set `CRAWLER_SERVICE_URL` on the worker to the service's private URL; without it the
+crawl engine simply uses its built-in HTTP fetcher.

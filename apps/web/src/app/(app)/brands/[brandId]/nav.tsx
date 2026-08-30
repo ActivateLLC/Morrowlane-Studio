@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { cn } from '@morrowlane/ui';
 import { Icon } from '@/components/icons';
 import { LogoMark } from '@/components/logo';
@@ -45,6 +45,7 @@ function NavList({
           <Link
             key={item.slug}
             href={href}
+            aria-current={active ? 'page' : undefined}
             onClick={onNavigate}
             className={cn(
               'flex items-center gap-2.5 rounded-lg px-2.5 text-[13px] font-medium transition-colors',
@@ -54,7 +55,7 @@ function NavList({
                 : 'text-shell-text hover:bg-shell-hover hover:text-shell-bright',
             )}
           >
-            <Icon name={item.icon} className={cn('h-4 w-4 shrink-0', active ? 'text-accent' : 'text-shell-text')} />
+            <Icon name={item.icon} className={cn('h-4 w-4 shrink-0', active ? 'text-accent-strong' : 'text-shell-text')} />
             {item.label}
           </Link>
         );
@@ -92,6 +93,48 @@ export function BrandSidebar({
     };
   }, [open]);
 
+
+  const drawerRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    triggerRef.current = document.activeElement as HTMLElement | null;
+    const node = drawerRef.current;
+    const focusable = () =>
+      Array.from(
+        node?.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])') ?? [],
+      );
+    focusable()[0]?.focus();
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setOpen(false);
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const items = focusable();
+      if (items.length === 0) return;
+      const first = items[0]!;
+      const last = items[items.length - 1]!;
+      // Keep Tab inside the overlay rather than letting it reach the hidden page.
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      triggerRef.current?.focus();
+    };
+  }, [open]);
+
   return (
     <>
       {/* ------------------------------- Phone ------------------------------- */}
@@ -120,11 +163,24 @@ export function BrandSidebar({
       </header>
 
       {open ? (
-        <div className="anim-drawer fixed inset-0 top-14 z-30 flex flex-col bg-shell lg:hidden">
-          <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 pt-2">
+        <div
+          ref={drawerRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Workspace sections"
+          className="anim-drawer fixed inset-0 top-14 z-30 flex flex-col bg-shell lg:hidden"
+        >
+          <nav aria-label="Sections" className="flex-1 space-y-0.5 overflow-y-auto px-3 pt-2">
             <NavList brandId={brandId} pathname={pathname} onNavigate={() => setOpen(false)} itemClassName="py-3 text-[15px]" />
           </nav>
           <div className="space-y-0.5 border-t border-shell-line px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <Link
+              href="/?all=1"
+              className="flex items-center gap-2.5 rounded-lg px-2.5 py-3 text-[15px] font-medium text-shell-text"
+            >
+              <Icon name="stack" className="h-4 w-4" />
+              Switch brand
+            </Link>
             <Link
               href="/settings"
               className="flex items-center gap-2.5 rounded-lg px-2.5 py-3 text-[15px] font-medium text-shell-text"
@@ -137,7 +193,7 @@ export function BrandSidebar({
         </div>
       ) : null}
 
-      <nav className="fixed inset-x-0 bottom-0 z-20 flex border-t border-shell-line bg-shell pb-[env(safe-area-inset-bottom)] lg:hidden">
+      <nav aria-label="Primary" className="fixed inset-x-0 bottom-0 z-20 flex border-t border-shell-line bg-shell pb-[env(safe-area-inset-bottom)] lg:hidden">
         {ITEMS.filter((item) => MOBILE_TABS.includes(item.slug)).map((item) => {
           const href = item.slug ? `${base}/${item.slug}` : base;
           const active = item.slug ? pathname.startsWith(href) : pathname === base;
@@ -145,9 +201,10 @@ export function BrandSidebar({
             <Link
               key={item.slug}
               href={href}
+              aria-current={active ? 'page' : undefined}
               className={cn(
                 'flex h-14 flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium',
-                active ? 'text-accent' : 'text-shell-text',
+                active ? 'text-accent-strong' : 'text-shell-text',
               )}
             >
               <Icon name={item.icon} className="h-5 w-5" />
@@ -160,7 +217,7 @@ export function BrandSidebar({
           onClick={() => setOpen((value) => !value)}
           className={cn(
             'flex h-14 flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium',
-            open ? 'text-accent' : 'text-shell-text',
+            open ? 'text-accent-strong' : 'text-shell-text',
           )}
         >
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden>
@@ -181,11 +238,21 @@ export function BrandSidebar({
           </span>
         </Link>
 
-        <p className="px-5 pb-2 text-[11px] font-medium uppercase tracking-wider text-shell-text/70">
-          {brandName}
-        </p>
+        <Link
+          href="/?all=1"
+          title="Switch brand"
+          className="group mx-3 mb-2 flex items-center justify-between rounded-lg px-2 py-1.5 transition-colors hover:bg-shell-hover"
+        >
+          <span className="truncate text-[11px] font-medium uppercase tracking-wider text-shell-text group-hover:text-shell-bright">
+            {brandName}
+          </span>
+          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-shell-text" fill="none" aria-hidden>
+            <path d="M8 9l4-4 4 4M8 15l4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span className="sr-only">Switch brand</span>
+        </Link>
 
-        <nav className="flex-1 space-y-0.5 overflow-y-auto px-3">
+        <nav aria-label="Main" className="flex-1 space-y-0.5 overflow-y-auto px-3">
           <NavList brandId={brandId} pathname={pathname} />
         </nav>
 

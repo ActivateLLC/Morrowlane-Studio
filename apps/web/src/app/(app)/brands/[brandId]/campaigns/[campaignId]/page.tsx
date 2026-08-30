@@ -4,7 +4,9 @@ import { performanceByContent, summariseFunnel } from '@morrowlane/analytics';
 import { addDays } from '@morrowlane/shared';
 import { Badge, Button, Card, CardBody, CardHeader, Stat, cn } from '@morrowlane/ui';
 import { getCampaignOutcome } from '@morrowlane/shared';
-import { approvePlan, updateCampaignStatus } from '@/server/actions';
+import { approvePlan, approveSelected, pauseCampaign, removeSelected, updateCampaignStatus } from '@/server/actions';
+import { CommitBar } from './commit-bar';
+import { ReviewList } from './review-list';
 import { requireBrand } from '@/server/session';
 import { formatDay, formatDateTime, formatNumber, STATUS_TONES, statusLabel } from '@/lib/format';
 
@@ -48,6 +50,11 @@ export default async function CampaignDetailPage({
   const approvableCount = items.length - blockedCount;
   const outcome = getCampaignOutcome(campaign.outcome);
 
+  // What the commit step promises: when the run actually starts and ends.
+  const plannedStart = addDays(campaign.startDate, 0);
+  const firstPostAt = formatDay(plannedStart);
+  const lastPostAt = formatDay(addDays(campaign.startDate, campaign.durationDays - 1));
+
   return (
     <div className="space-y-6">
       <div>
@@ -68,11 +75,19 @@ export default async function CampaignDetailPage({
               {awaitingReview ? 'plan ready' : campaign.status}
             </Badge>
             {campaign.status === 'active' ? (
-              <form action={updateCampaignStatus.bind(null, brandId, campaignId, 'complete')}>
-                <Button type="submit" variant="secondary" size="sm">
-                  Mark complete
-                </Button>
-              </form>
+              <>
+                {/* The way back: cancels every post not yet published and returns this to a plan. */}
+                <form action={pauseCampaign.bind(null, brandId, campaignId)}>
+                  <Button type="submit" variant="ghost" size="sm">
+                    Pause &amp; unschedule
+                  </Button>
+                </form>
+                <form action={updateCampaignStatus.bind(null, brandId, campaignId, 'complete')}>
+                  <Button type="submit" variant="secondary" size="sm">
+                    Mark complete
+                  </Button>
+                </form>
+              </>
             ) : campaign.status !== 'archived' ? (
               <form action={updateCampaignStatus.bind(null, brandId, campaignId, 'archived')}>
                 <Button type="submit" variant="ghost" size="sm">
@@ -101,11 +116,16 @@ export default async function CampaignDetailPage({
                 ) : null}
               </p>
             </div>
-            <form action={approvePlan.bind(null, brandId, campaignId)} className="shrink-0">
-              <Button type="submit" size="lg" disabled={approvableCount === 0}>
-                Approve &amp; schedule {approvableCount} {approvableCount === 1 ? 'post' : 'posts'}
-              </Button>
-            </form>
+            <div className="shrink-0">
+              <CommitBar
+                approvableCount={approvableCount}
+                blockedCount={blockedCount}
+                channels={campaign.channels}
+                firstPostAt={firstPostAt}
+                lastPostAt={lastPostAt}
+                approve={approvePlan.bind(null, brandId, campaignId)}
+              />
+            </div>
           </CardBody>
         </Card>
       ) : null}
@@ -138,6 +158,33 @@ export default async function CampaignDetailPage({
         <Stat label="Qualified visits" value={formatNumber(Math.min(totals.visit, totals.click))} />
       </div>
 
+      {awaitingReview ? (
+        <ReviewList
+          brandId={brandId}
+          phases={campaign.phases.map((phase) => ({
+            id: phase.id,
+            title: phase.title,
+            narrative: phase.narrative,
+            dayRange: `Day ${phase.startDay + 1}–${phase.endDay + 1}`,
+          }))}
+          items={items.map((item) => {
+            const blocking = item.violations.find((v) => v.severity === 'error') ?? null;
+            return {
+              id: item.id,
+              title: item.title,
+              body: item.body,
+              format: item.format,
+              channel: item.channel,
+              status: item.status,
+              blocked: Boolean(blocking),
+              blockingMessage: blocking?.message ?? null,
+              phaseId: item.campaignPhaseId,
+            };
+          })}
+          approveSelected={approveSelected.bind(null, brandId)}
+          removeSelected={removeSelected.bind(null, brandId)}
+        />
+      ) : (
       <section className="space-y-4">
         {campaign.phases.map((phase, index) => {
           const phaseItems = byPhase.get(phase.id) ?? [];
@@ -178,6 +225,7 @@ export default async function CampaignDetailPage({
           );
         })}
       </section>
+      )}
 
       {upcoming.length > 0 ? (
         <Card>

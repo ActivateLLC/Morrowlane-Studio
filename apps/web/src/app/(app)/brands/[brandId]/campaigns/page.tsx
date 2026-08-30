@@ -4,11 +4,13 @@ import Link from 'next/link';
 import { createCampaign } from '@/server/actions';
 import { requireBrand } from '@/server/session';
 import { formatDay } from '@/lib/format';
+import { SetupNeeded } from '@/components/setup-needed';
 
 export default async function CampaignsPage({ params }: { params: Promise<{ brandId: string }> }) {
   const { brandId } = await params;
   const { runtime } = await requireBrand(brandId);
   const brain = await runtime.store.getBrain(brandId);
+  if (!brain) return <SetupNeeded brandId={brandId} />;
   const campaigns = await runtime.store.listCampaigns(brandId);
 
   return (

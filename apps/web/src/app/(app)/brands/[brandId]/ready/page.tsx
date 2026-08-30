@@ -54,6 +54,30 @@ export default async function ReadyPage({
     days = new Set(posts.map((p) => p.scheduledFor.slice(0, 10))).size;
   }
 
+  // Nothing was scheduled: congratulating the user here would simply be untrue.
+  if (pieces === 0) {
+    return (
+      <div className="mx-auto max-w-lg pt-10">
+        <Card>
+          <CardBody className="py-8 text-center">
+            <h1 className="text-xl font-semibold tracking-tight text-ink">Nothing on your calendar yet</h1>
+            <p className="mt-1 text-[13px] text-ink-soft">
+              Once you create something it shows up here, ready to schedule.
+            </p>
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+              <Link href={`${base}/studio`}>
+                <Button>Make your first post</Button>
+              </Link>
+              <Link href={`${base}/plan`}>
+                <Button variant="secondary">Plan a campaign</Button>
+              </Link>
+            </div>
+          </CardBody>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-lg pt-10">
       <Card>
@@ -69,7 +93,7 @@ export default async function ReadyPage({
           <div className="mx-auto mt-6 grid max-w-sm grid-cols-3 gap-3">
             <Stat label="Pieces" value={String(pieces)} />
             <Stat label={platforms === 1 ? 'Platform' : 'Platforms'} value={String(platforms)} />
-            <Stat label="Days" value={String(days)} />
+            <Stat label="Publishing days" value={String(days)} />
           </div>
 
           <div className="mt-7 flex flex-wrap items-center justify-center gap-3">

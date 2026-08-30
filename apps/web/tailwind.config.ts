@@ -8,7 +8,9 @@ export default {
         ink: {
           DEFAULT: '#101815',
           soft: '#3d4a45',
-          faint: '#6b7a74',
+          // #6b7a74 measured 4.19:1 on the sunken surface — below AA. This clears
+          // 4.5:1 on white, sunken and the blurred top bar alike.
+          faint: '#63726c',
         },
         surface: {
           DEFAULT: '#ffffff',
@@ -17,10 +19,14 @@ export default {
         },
         line: '#e2e8e5',
         // Teal brand accent, per the reference frames.
+        // Teal brand accent. DEFAULT is the brand hue for large marks and borders;
+        // `strong` is the accessible one (5.21:1 with white, 5.21:1 as text on white)
+        // and is what every button fill and text use must reference.
         accent: {
           DEFAULT: '#0d9488',
           soft: '#e7f6f3',
           strong: '#0b7a70',
+          deep: '#095f57',
         },
         // The dark pine shell: sidebar, onboarding modal, sign-in.
         shell: {

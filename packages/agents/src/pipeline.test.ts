@@ -178,6 +178,36 @@ describe('the whole product, end to end', () => {
     expect((await runtime.store.getCampaign(campaignId))?.status).toBe('active');
   });
 
+
+  it('flags a connection whose token has already expired, before a campaign relies on it', async () => {
+    // Social tokens lapse silently — nothing tells you until posts stop going out.
+    await runtime.store.saveConnection(
+      {
+        id: 'con_stale',
+        brandId,
+        channel: 'facebook' as const,
+        displayName: '@orcacredit',
+        externalAccountId: 'acct-stale',
+        status: 'active' as const,
+        scopes: ['write'],
+        expiresAt: addDays(nowIso(), -1),
+        lastValidatedAt: null,
+        createdAt: nowIso(),
+      },
+      { accessToken: 'stale-token', refreshToken: null, metadata: {} },
+    );
+
+    await runtime.store.enqueueJob({ organizationId, brandId, kind: 'validate_connections', payload: {} });
+    const job = await runNextJob(runtime);
+
+    expect(job.status).toBe('succeeded');
+    expect(Number(job.result?.['expired'])).toBeGreaterThanOrEqual(1);
+
+    const checked = await runtime.store.getConnection('con_stale');
+    expect(checked?.status).toBe('expired');
+    expect(checked?.lastValidatedAt).not.toBeNull();
+  });
+
   it('fills a month with a balanced mix rather than a wall of promotion', async () => {
     await runtime.store.enqueueJob({
       organizationId,
@@ -316,7 +346,7 @@ describe('the whole product, end to end', () => {
     });
     const job = await runNextJob(fresh);
     expect(job.status).toBe('failed');
-    expect(job.error).toMatch(/website analysis/i);
+    expect(job.error).toMatch(/no profile yet/i);
   });
 
   it('reports progress while a long job runs', async () => {

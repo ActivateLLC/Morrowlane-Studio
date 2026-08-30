@@ -3,6 +3,9 @@ import { Badge, Button, Card, CardBody, Input, Label, PageHeader, ProgressBar, S
 import { generateFormat, runStudio } from '@/server/actions';
 import { requireBrand } from '@/server/session';
 import { STATUS_TONES, statusLabel } from '@/lib/format';
+import { AutoRefresh } from '@/components/auto-refresh';
+import { SubmitButton } from '@/components/submit-button';
+import { SetupNeeded } from '@/components/setup-needed';
 
 /**
  * The central creation interface. One large input; the intent parser decides whether
@@ -13,6 +16,7 @@ export default async function StudioPage({ params }: { params: Promise<{ brandId
   const { brandId } = await params;
   const { runtime } = await requireBrand(brandId);
   const brain = await runtime.store.getBrain(brandId);
+  if (!brain) return <SetupNeeded brandId={brandId} />;
   const recent = await runtime.store.queryContent({ brandId, limit: 8 });
   const jobs = await runtime.store.listJobs(brandId, { limit: 6 });
   const active = jobs.filter((job) => job.status === 'running' || job.status === 'queued');
@@ -27,8 +31,7 @@ export default async function StudioPage({ params }: { params: Promise<{ brandId
       <Card>
         <CardBody className="py-6">
           <form action={runStudio.bind(null, brandId)} className="space-y-3">
-            <Textarea
-              name="instruction"
+            <Textarea aria-label="What should Morrowlane create?" name="instruction"
               rows={3}
               required
               className="text-base"
@@ -38,9 +41,9 @@ export default async function StudioPage({ params }: { params: Promise<{ brandId
               <p className="text-[12px] text-ink-faint max-sm:order-2">
                 Try: “Generate 30 days of content”, “10 TikTok scripts about {brain?.terminology[0] ?? 'your product'}”.
               </p>
-              <Button type="submit" size="lg" className="max-sm:w-full">
+              <SubmitButton size="lg" className="max-sm:w-full" pendingLabel="Writing…" hint="Grounding every line in your Brand Brain.">
                 Generate content
-              </Button>
+              </SubmitButton>
             </div>
           </form>
         </CardBody>
@@ -82,7 +85,8 @@ export default async function StudioPage({ params }: { params: Promise<{ brandId
               ))}
             </CardBody>
           </Card>
-          {active.length > 0 ? <meta httpEquiv="refresh" content="4" /> : null}
+          {active.length > 0 ?
+      <AutoRefresh intervalMs={4000} label="Morrowlane is working…" /> : null}
         </section>
       ) : null}
 
@@ -117,9 +121,9 @@ export default async function StudioPage({ params }: { params: Promise<{ brandId
                 </Select>
               </div>
               <div className="flex items-end">
-                <Button type="submit" variant="secondary">
+                <SubmitButton variant="secondary" pendingLabel="Writing…">
                   Generate
-                </Button>
+                </SubmitButton>
               </div>
             </form>
           </CardBody>

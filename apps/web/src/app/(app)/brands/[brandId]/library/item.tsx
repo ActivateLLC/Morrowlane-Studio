@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+
 import { useState, useTransition } from 'react';
 import type { ContentItem } from '@morrowlane/shared';
 import { Badge, Button, Card, CardBody, Textarea } from '@morrowlane/ui';
@@ -7,6 +9,7 @@ import { STATUS_TONES, statusLabel } from '@/lib/format';
 
 export function LibraryItem({
   item,
+  openHref,
   approve,
   remove,
   saveBody,
@@ -14,6 +17,8 @@ export function LibraryItem({
   defaultOpen = false,
 }: {
   item: ContentItem;
+  /** Link to the detail page, rendered in the card footer. */
+  openHref?: string;
   approve: () => Promise<void>;
   remove: () => Promise<void>;
   saveBody: (body: string) => Promise<void>;
@@ -43,7 +48,12 @@ export function LibraryItem({
   return (
     <Card className={pending ? 'opacity-60' : undefined}>
       <CardBody className="py-4">
-        <button type="button" className="w-full text-left" onClick={() => setOpen((value) => !value)}>
+        <button
+          type="button"
+          className="w-full text-left"
+          aria-expanded={open}
+          onClick={() => setOpen((value) => !value)}
+        >
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-sm font-medium text-ink">{item.title}</p>
             <div className="flex items-center gap-2">
@@ -112,7 +122,7 @@ export function LibraryItem({
             ) : null}
 
             {item.hashtags.length > 0 ? (
-              <p className="text-[12px] text-accent">{item.hashtags.join(' ')}</p>
+              <p className="text-[12px] text-accent-strong">{item.hashtags.join(' ')}</p>
             ) : null}
 
             {!editing ? (
@@ -126,6 +136,7 @@ export function LibraryItem({
                   <span className="flex items-center gap-1.5">
                     <input
                       type="datetime-local"
+                aria-label="Schedule this post for"
                       value={when}
                       onChange={(event) => setWhen(event.target.value)}
                       className="h-8 rounded border border-line bg-white px-2 text-[12px]"
@@ -148,6 +159,17 @@ export function LibraryItem({
                 </Button>
               </div>
             ) : null}
+          </div>
+        ) : null}
+
+        {openHref ? (
+          <div className="mt-3 border-t border-line pt-2">
+            <Link
+              href={openHref}
+              className="inline-flex min-h-11 items-center text-[13px] font-medium text-accent-strong hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong"
+            >
+              Open this piece
+            </Link>
           </div>
         ) : null}
       </CardBody>

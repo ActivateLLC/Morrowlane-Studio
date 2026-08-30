@@ -2,6 +2,8 @@ import { CAMPAIGN_OUTCOMES, SOCIAL_CHANNELS } from '@morrowlane/shared';
 import { Button, Card, CardBody, Label, PageHeader, Select } from '@morrowlane/ui';
 import { startGuidedCampaign } from '@/server/actions';
 import { requireBrand } from '@/server/session';
+import { SubmitButton } from '@/components/submit-button';
+import { SetupNeeded } from '@/components/setup-needed';
 
 /**
  * The guided flow's front door (step 5). Instead of a blank goal box, the user picks the
@@ -17,6 +19,8 @@ export default async function PlanPage({ params }: { params: Promise<{ brandId: 
     runtime.store.listConnections(brandId),
   ]);
 
+  if (!brain) return <SetupNeeded brandId={brandId} />;
+
   const connectedChannels = connections.filter((c) => c.status === 'active').map((c) => c.channel);
   const defaultChannels = connectedChannels.length > 0 ? connectedChannels : ['instagram'];
 
@@ -29,12 +33,12 @@ export default async function PlanPage({ params }: { params: Promise<{ brandId: 
 
       <form action={startGuidedCampaign.bind(null, brandId)} className="space-y-6">
         <fieldset className="space-y-3">
-          <Label>What should this achieve?</Label>
+          <legend className="mb-1 block text-[13px] font-medium text-ink-soft">What should this achieve?</legend>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {CAMPAIGN_OUTCOMES.map((outcome, index) => (
               <label
                 key={outcome.id}
-                className="group relative flex cursor-pointer flex-col rounded-xl border border-line bg-surface p-4 transition hover:border-accent/50 has-[:checked]:border-accent has-[:checked]:bg-accent-soft/40 has-[:checked]:ring-1 has-[:checked]:ring-accent/40"
+                className="group relative flex cursor-pointer flex-col rounded-xl border border-line bg-surface p-4 transition hover:border-accent/50 has-[:checked]:border-accent has-[:checked]:bg-accent-soft/40 has-[:checked]:ring-1 has-[:checked]:ring-accent/40 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent-strong"
               >
                 <input
                   type="radio"
@@ -95,9 +99,9 @@ export default async function PlanPage({ params }: { params: Promise<{ brandId: 
         </Card>
 
         <div className="flex flex-wrap items-center gap-3">
-          <Button type="submit" size="lg">
+          <SubmitButton size="lg" pendingLabel="Planning your campaign…" hint="Writing every post in the run. This can take a minute.">
             Generate the plan
-          </Button>
+          </SubmitButton>
           <p className="text-[12px] text-ink-faint">
             You&apos;ll review everything before anything is scheduled or published.
           </p>

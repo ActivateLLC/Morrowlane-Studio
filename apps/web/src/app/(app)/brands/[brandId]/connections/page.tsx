@@ -1,12 +1,23 @@
-import { Badge, Button, Card, CardBody, PageHeader } from '@morrowlane/ui';
-import { connectDemoAccount, disconnectAccount } from '@/server/actions';
+import Link from 'next/link';
+import { Alert, Badge, Button, Card, CardBody, PageHeader } from '@morrowlane/ui';
+import { connectBluesky, connectDemoAccount, disconnectAccount } from '@/server/actions';
+import { BlueskyConnectForm } from './bluesky-form';
 import { requireBrand } from '@/server/session';
 import { formatDateTime } from '@/lib/format';
 
 /** Milestone 7: centralized OAuth connections behind the provider abstraction. */
-export default async function ConnectionsPage({ params }: { params: Promise<{ brandId: string }> }) {
+export default async function ConnectionsPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ brandId: string }>;
+  searchParams: Promise<{ connected?: string; connect_error?: string }>;
+}) {
   const { brandId } = await params;
+  const { connected: justConnected, connect_error: connectError } = await searchParams;
   const { runtime } = await requireBrand(brandId);
+  // Real OAuth is not wired yet, so the page must say what it actually does.
+  const demoMode = runtime.demoMode;
 
   const connections = await runtime.store.listConnections(brandId);
   const connectedChannels = new Set(connections.map((connection) => connection.channel));
@@ -16,8 +27,23 @@ export default async function ConnectionsPage({ params }: { params: Promise<{ br
     <div className="space-y-6">
       <PageHeader
         title="Social connections"
-        description="Connect the accounts Morrowlane publishes to. Tokens are encrypted and never shown."
+        description="The accounts Morrowlane publishes to. Access tokens are encrypted at rest and never shown."
       />
+
+      {justConnected ? <Alert tone="positive" title={`${justConnected} is connected. Scheduled posts will publish to it.`} /> : null}
+      {connectError ? <Alert tone="critical" title={connectError} /> : null}
+
+      {demoMode ? (
+        <Card className="border-caution/40 bg-caution-soft/40">
+          <CardBody className="py-3">
+            <p className="text-[13px] text-ink">
+              <span className="font-medium">These are sample connections.</span> Connecting a real account opens that
+              network&apos;s own sign-in, which isn&apos;t switched on in this workspace yet — so Connect below adds a
+              stand-in account you can schedule and publish against to see the whole flow.
+            </p>
+          </CardBody>
+        </Card>
+      ) : null}
 
       {connections.length > 0 ? (
         <Card>
@@ -52,25 +78,39 @@ export default async function ConnectionsPage({ params }: { params: Promise<{ br
             const connected = connectedChannels.has(provider.channel);
             return (
               <Card key={provider.channel}>
-                <CardBody className="flex items-center justify-between py-4">
+                <CardBody className="flex flex-wrap items-center justify-between gap-3 py-4">
                   <div>
                     <p className="text-[13px] font-medium text-ink">{provider.label}</p>
                     <p className="text-[12px] text-ink-faint">
-                      {provider.configured
-                        ? provider.capabilities.requiresMedia
-                          ? 'Requires rendered media'
-                          : 'Ready to connect'
-                        : 'Credentials not configured'}
+                      {demoMode
+                        ? 'Adds a sample account'
+                        : provider.channel === 'bluesky'
+                          ? 'Connects with a handle and app password'
+                          : provider.configured
+                            ? 'Opens the network\u2019s own sign-in'
+                            : 'Not set up on this workspace yet'}
                     </p>
                   </div>
                   {connected ? (
                     <Badge tone="positive">connected</Badge>
-                  ) : (
+                  ) : demoMode ? (
                     <form action={connectDemoAccount.bind(null, brandId, provider.channel)}>
-                      <Button type="submit" variant="secondary" size="sm" disabled={!provider.configured}>
-                        Connect
+                      <Button type="submit" variant="secondary" size="sm">
+                        Add sample
                       </Button>
                     </form>
+                  ) : provider.channel === 'bluesky' ? (
+                    <BlueskyConnectForm connect={connectBluesky.bind(null, brandId)} />
+                  ) : provider.configured ? (
+                    <Link href={`/api/connect/${provider.channel}?brandId=${brandId}`}>
+                      <Button variant="secondary" size="sm">
+                        Connect
+                      </Button>
+                    </Link>
+                  ) : (
+                    <Button variant="secondary" size="sm" disabled>
+                      Not available yet
+                    </Button>
                   )}
                 </CardBody>
               </Card>
@@ -78,9 +118,8 @@ export default async function ConnectionsPage({ params }: { params: Promise<{ br
           })}
         </div>
         <p className="mt-3 text-[12px] text-ink-faint">
-          In production each Connect button starts the network's OAuth flow. With mock providers active
-          (MORROWLANE_MOCK_SOCIAL=1 or demo mode) it creates a working demo connection so the whole
-          publish pipeline can be exercised.
+          Morrowlane speaks each network&apos;s own publishing API and stores only an encrypted access token — never
+          your password. You can disconnect at any time.
         </p>
       </section>
     </div>

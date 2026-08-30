@@ -1,10 +1,12 @@
 import Link from 'next/link';
 import { buildOpportunities, performanceByContent } from '@morrowlane/analytics';
 import { addDays, nowIso } from '@morrowlane/shared';
-import { Badge, Button, Card, CardBody, CardHeader, ProgressBar, Stat } from '@morrowlane/ui';
-import { actOnOpportunity, fillMonthAction, reanalyzeBrand } from '@/server/actions';
+import { Badge, Button, Card, CardBody, CardHeader, Input, ProgressBar, Stat } from '@morrowlane/ui';
+import { actOnOpportunity, deleteBrandAction, retryWithNewAddress } from '@/server/actions';
 import { requireBrand } from '@/server/session';
 import { formatDateTime, formatNumber, STATUS_TONES, statusLabel } from '@/lib/format';
+import { AutoRefresh } from '@/components/auto-refresh';
+import { SubmitButton } from '@/components/submit-button';
 
 /**
  * The brand home. It opens with creation — the three doors from the spec — and only
@@ -26,11 +28,26 @@ export default async function BrandTodayPage({ params }: { params: Promise<{ bra
           <CardBody className="py-8 text-center">
             {brand.status === 'failed' ? (
               <>
-                <p className="font-medium text-ink">The analysis could not finish</p>
+                <p className="font-medium text-ink">Morrowlane couldn&apos;t read that website</p>
                 <p className="mt-1 text-sm text-ink-soft">{brand.statusDetail}</p>
-                <form action={reanalyzeBrand.bind(null, brandId)} className="mt-4">
-                  <Button type="submit">Try again</Button>
+                {/* A failed crawl used to be a dead end: the only offer was re-running the
+                    identical crawl. Now: fix the address, switch to questions, or delete. */}
+                <form action={retryWithNewAddress.bind(null, brandId)} className="mx-auto mt-5 flex max-w-sm flex-col gap-2 sm:flex-row">
+                  <Input name="websiteUrl" defaultValue={brand.websiteUrl} aria-label="Website address" required />
+                  <SubmitButton pendingLabel="Reading…" className="shrink-0">
+                    Try this address
+                  </SubmitButton>
                 </form>
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-4 text-[13px]">
+                  <Link href="/new" className="font-medium text-accent-strong hover:underline">
+                    Answer a few questions instead →
+                  </Link>
+                  <form action={deleteBrandAction.bind(null, brandId)}>
+                    <Button type="submit" variant="ghost" size="sm">
+                      Delete this brand
+                    </Button>
+                  </form>
+                </div>
               </>
             ) : (
               <>
@@ -41,7 +58,7 @@ export default async function BrandTodayPage({ params }: { params: Promise<{ bra
                 <div className="mx-auto mt-5 max-w-sm">
                   <ProgressBar value={running?.progress ?? 0.05} label={running?.progressLabel ?? 'Starting'} />
                 </div>
-                <meta httpEquiv="refresh" content="3" />
+                <AutoRefresh intervalMs={3000} label="Reading your website…" />
               </>
             )}
           </CardBody>
@@ -105,16 +122,14 @@ export default async function BrandTodayPage({ params }: { params: Promise<{ bra
               </CardBody>
             </Card>
           </Link>
-          <form action={fillMonthAction.bind(null, brandId)} className="contents">
-            <button type="submit" className="text-left">
-              <Card className="h-full transition-shadow hover:shadow-lifted">
-                <CardBody className="py-5">
-                  <p className="font-medium text-ink">Fill my month</p>
-                  <p className="mt-1 text-[13px] text-ink-soft">A balanced month of content, scheduled for you.</p>
-                </CardBody>
-              </Card>
-            </button>
-          </form>
+          <Link href={`/brands/${brandId}/fill`}>
+            <Card className="h-full transition-shadow hover:shadow-lifted">
+              <CardBody className="py-5">
+                <p className="font-medium text-ink">Fill my month</p>
+                <p className="mt-1 text-[13px] text-ink-soft">A balanced month of content, scheduled for you.</p>
+              </CardBody>
+            </Card>
+          </Link>
         </div>
       </section>
 
@@ -152,7 +167,7 @@ export default async function BrandTodayPage({ params }: { params: Promise<{ bra
         <section className="min-w-0">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-ink">Upcoming posts</h2>
-            <Link href={`/brands/${brandId}/calendar`} className="text-[13px] text-accent hover:underline">
+            <Link href={`/brands/${brandId}/calendar`} className="text-[13px] text-accent-strong hover:underline">
               Open calendar
             </Link>
           </div>
@@ -183,7 +198,7 @@ export default async function BrandTodayPage({ params }: { params: Promise<{ bra
         <section className="min-w-0">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-ink">Recent content</h2>
-            <Link href={`/brands/${brandId}/library`} className="text-[13px] text-accent hover:underline">
+            <Link href={`/brands/${brandId}/library`} className="text-[13px] text-accent-strong hover:underline">
               Open library
             </Link>
           </div>
@@ -212,7 +227,7 @@ export default async function BrandTodayPage({ params }: { params: Promise<{ bra
           <Card>
             <CardHeader className="flex items-center justify-between">
               <h2 className="text-sm font-semibold text-ink">Performance insights</h2>
-              <Link href={`/brands/${brandId}/analytics`} className="text-[13px] text-accent hover:underline">
+              <Link href={`/brands/${brandId}/analytics`} className="text-[13px] text-accent-strong hover:underline">
                 See analytics
               </Link>
             </CardHeader>

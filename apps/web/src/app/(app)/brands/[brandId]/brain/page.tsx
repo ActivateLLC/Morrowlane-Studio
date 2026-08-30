@@ -98,7 +98,9 @@ export default async function BrainPage({ params }: { params: Promise<{ brandId:
             />
             <EditableField label="How it sounds" value={brain.voice.personSummary} save={save('voice.personSummary')} locked={isLocked('voice.personSummary')} multiline />
             <div>
-              <p className="mb-1.5 text-[13px] font-medium text-ink-soft">Sample sentences from the site</p>
+              <p className="mb-1.5 text-[13px] font-medium text-ink-soft">
+                {brand.websiteUrl ? 'Sample sentences from the site' : 'What you told Morrowlane'}
+              </p>
               <ul className="space-y-1">
                 {brain.voice.sampleSentences.map((sentence) => (
                   <li key={sentence} className="rounded bg-surface-sunken px-3 py-1.5 text-[12px] italic text-ink-soft">
@@ -122,7 +124,7 @@ export default async function BrainPage({ params }: { params: Promise<{ brandId:
                 <p className="text-sm font-medium text-ink">{product.name}</p>
                 <Badge tone="neutral">{product.kind}</Badge>
               </div>
-              {product.priceHint ? <p className="mt-0.5 text-[12px] text-accent">{product.priceHint}</p> : null}
+              {product.priceHint ? <p className="mt-0.5 text-[12px] text-accent-strong">{product.priceHint}</p> : null}
               <p className="mt-2 text-[13px] text-ink-soft">{product.description}</p>
               {product.benefits.length > 0 ? (
                 <ul className="mt-2 space-y-0.5 text-[12px] text-ink-soft">

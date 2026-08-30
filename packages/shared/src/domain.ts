@@ -471,6 +471,7 @@ export const JOB_KINDS = [
   'fill_calendar',
   'render_media',
   'publish_post',
+  'validate_connections',
   'collect_metrics',
   'scan_competitors',
   'scan_trends',

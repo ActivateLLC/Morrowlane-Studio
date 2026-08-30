@@ -3,6 +3,7 @@ import { Button, Label } from '@morrowlane/ui';
 import { startBrandBuilder } from '@/server/actions';
 import { requireSession } from '@/server/session';
 import { VoiceDictateButton } from './voice';
+import { SubmitButton } from '@/components/submit-button';
 
 const ACTIONS = [
   { value: 'buy', label: 'Buy' },
@@ -17,7 +18,7 @@ const ACTIONS = [
 const FEELS = ['Professional', 'Bold', 'Warm', 'Luxury', 'Playful', 'Minimal', 'Educational', 'Custom'];
 
 const fieldClass =
-  'w-full rounded-lg border border-line bg-surface px-3 py-2 text-[15px] text-ink placeholder:text-ink-faint focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25';
+  'w-full rounded-lg border border-line bg-surface px-3 py-2 text-base text-ink placeholder:text-ink-faint focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25';
 
 /**
  * The Brand Builder — the "I don't have a website yet" path. A short set of the
@@ -108,12 +109,12 @@ export default async function BrandBuilderPage() {
           </div>
 
           <fieldset>
-            <Label>Choose a general brand feel</Label>
+            <legend className="mb-1 block text-[13px] font-medium text-ink-soft">Choose a general brand feel</legend>
             <div className="flex flex-wrap gap-2 pt-1">
               {FEELS.map((feel, index) => (
                 <label
                   key={feel}
-                  className="cursor-pointer rounded-full border border-line px-3 py-1.5 text-[13px] text-ink-soft transition hover:border-accent/50 has-[:checked]:border-accent has-[:checked]:bg-accent-soft has-[:checked]:text-accent-strong"
+                  className="inline-flex min-h-11 cursor-pointer items-center rounded-full border border-line px-4 text-[13px] text-ink-soft transition hover:border-accent/50 has-[:checked]:border-accent has-[:checked]:bg-accent-soft has-[:checked]:text-accent-strong has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent-strong"
                 >
                   <input type="radio" name="brandFeel" value={feel.toLowerCase()} defaultChecked={index === 0} className="sr-only" />
                   {feel}
@@ -123,9 +124,9 @@ export default async function BrandBuilderPage() {
           </fieldset>
 
           <div className="flex flex-wrap items-center gap-3 pt-1">
-            <Button type="submit" size="lg">
+            <SubmitButton size="lg" pendingLabel="Building your profile…" hint="Reading your answers and writing your brand profile.">
               Build my brand profile
-            </Button>
+            </SubmitButton>
             <Link href="/" className="text-[13px] text-ink-faint hover:text-ink">
               I have a website after all
             </Link>

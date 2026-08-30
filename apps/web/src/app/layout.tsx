@@ -3,11 +3,40 @@ import type { ReactNode } from 'react';
 import { PwaRegister } from '@/components/pwa';
 import './globals.css';
 
+// Absolute URLs for link previews. Vercel injects VERCEL_PROJECT_PRODUCTION_URL; the
+// custom domain overrides it via NEXT_PUBLIC_SITE_URL when set.
+const siteUrl =
+  process.env['NEXT_PUBLIC_SITE_URL'] ??
+  (process.env['VERCEL_PROJECT_PRODUCTION_URL']
+    ? `https://${process.env['VERCEL_PROJECT_PRODUCTION_URL']}`
+    : 'https://morrowlane.creai.dev');
+
+const TAGLINE = 'Turn your business into a content engine.';
+const SUMMARY =
+  'Morrowlane learns your business, plans the campaign, writes every post, and schedules it across your channels — then tells you what to do next.';
+
 export const metadata: Metadata = {
-  title: 'Morrowlane Studio',
-  description: 'Turn your business into a content engine.',
+  metadataBase: new URL(siteUrl),
+  title: { default: 'Morrowlane Studio', template: '%s · Morrowlane Studio' },
+  description: TAGLINE,
   applicationName: 'Morrowlane Studio',
   manifest: '/manifest.webmanifest',
+  openGraph: {
+    type: 'website',
+    siteName: 'Morrowlane Studio',
+    title: 'Morrowlane Studio',
+    description: SUMMARY,
+    url: siteUrl,
+    images: [{ url: '/icons/icon-512.png', width: 512, height: 512, alt: 'Morrowlane Studio' }],
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Morrowlane Studio',
+    description: SUMMARY,
+    images: ['/icons/icon-512.png'],
+  },
+  // The product is a private workspace; only the sign-in surface should ever be indexed.
+  robots: { index: true, follow: true, googleBot: { index: true, follow: true } },
   appleWebApp: {
     capable: true,
     title: 'Morrowlane',
