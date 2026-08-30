@@ -1,7 +1,8 @@
 import { AiGatewayError, type AiProvider, type CompletionRequest, type CompletionResponse } from './types.js';
 
+// Current model IDs are undated; override per-tier via options.models or upgrade here.
 const TIER_MODELS = {
-  fast: 'claude-haiku-4-5-20251001',
+  fast: 'claude-haiku-4-5',
   balanced: 'claude-sonnet-5',
   deep: 'claude-opus-5',
 } as const;
