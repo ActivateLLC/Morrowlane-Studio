@@ -16,4 +16,6 @@ COPY services/crawler/ ./
 # Railway injects PORT. Point the worker's CRAWLER_SERVICE_URL at this service's
 # private domain and the crawl engine escalates to it automatically.
 ENV PYTHONUNBUFFERED=1
-CMD ["sh", "-c", "uvicorn app:app --host 0.0.0.0 --port ${PORT:-8020}"]
+# Bind :: — Railway private networking is IPv6-only, and the worker reaches this
+# service over it as http://crawler.railway.internal:8020.
+CMD ["sh", "-c", "uvicorn app:app --host :: --port ${PORT:-8020}"]
