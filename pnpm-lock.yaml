@@ -42,6 +42,9 @@ importers:
 
   packages/analytics:
     dependencies:
+      '@morrowlane/crawl-engine':
+        specifier: workspace:*
+        version: link:../crawl-engine
       '@morrowlane/shared':
         specifier: workspace:*
         version: link:../shared

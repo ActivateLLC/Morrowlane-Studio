@@ -145,8 +145,12 @@ function composeCore(view: BriefView, angle: Angle, seed: number): Composed {
 
     case 'objection':
       return {
-        title: faq ? truncate(faq.question, 70) : `Answering the question we hear most`,
-        hook: faq ? faq.question : `The question we get asked before anyone signs up:`,
+        // Framed as the hesitation, not as the question itself, so it stays distinct
+        // from the 'question' angle when both draw on the same FAQ.
+        title: faq ? `Before you decide: ${truncate(faq.question, 60)}` : `Answering the question we hear most`,
+        hook: faq
+          ? `The thing people want settled before they sign up: ${faq.question}`
+          : `There is one hesitation we hear more than any other.`,
         paragraphs: [faq ? truncate(faq.answer, 420) : truncate(product?.description || view.description, 320)],
         topics,
         visualIdea: `Question on the first frame, answer on the second.`,

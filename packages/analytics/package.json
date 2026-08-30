@@ -13,14 +13,20 @@
   },
   "publishConfig": {
     "exports": {
-      ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" }
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
     }
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
-  "dependencies": {"@morrowlane/shared":"workspace:*"},
+  "dependencies": {
+    "@morrowlane/shared": "workspace:*",
+    "@morrowlane/crawl-engine": "workspace:*"
+  },
   "devDependencies": {
     "typescript": "^5.7.2"
   }
