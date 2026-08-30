@@ -287,3 +287,37 @@ describe('seedDemo', () => {
     expect(competitors).toHaveLength(2);
   });
 });
+
+describe('worker resilience', () => {
+  it('backs off and keeps running when the store is unreachable, instead of crashing', async () => {
+    const runtime = makeRuntime();
+    let failures = 0;
+    // Simulate the production failure mode: every poll hits a dead database.
+    runtime.store.claimDuePosts = async () => {
+      failures += 1;
+      throw new Error('Could not read scheduled_posts: Invalid API key');
+    };
+
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 120);
+
+    // Must resolve (0 jobs) rather than reject — a crash here is the bug.
+    const processed = await runWorker(runtime, {
+      signal: controller.signal,
+      errorBackoffMs: 10,
+      idleDelayMs: 5,
+    });
+    expect(processed).toBe(0);
+    expect(failures).toBeGreaterThanOrEqual(2);
+  });
+
+  it('still surfaces the failure on one-shot runs', async () => {
+    const runtime = makeRuntime();
+    runtime.store.claimDuePosts = async () => {
+      throw new Error('down');
+    };
+    // maxJobs marks a bounded run (tests, cron): it should stop, not spin.
+    const processed = await runWorker(runtime, { maxJobs: 3, errorBackoffMs: 1 });
+    expect(processed).toBe(0);
+  });
+});

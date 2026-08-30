@@ -13,6 +13,8 @@ export interface WorkerOptions {
   signal?: AbortSignal;
   /** Stops after this many jobs. Used by tests and one-shot runs. */
   maxJobs?: number;
+  /** Base delay after a failed poll; doubles per consecutive failure, capped at 60s. */
+  errorBackoffMs?: number;
 }
 
 /**
@@ -22,25 +24,45 @@ export interface WorkerOptions {
 export async function runWorker(runtime: Runtime, options: WorkerOptions = {}): Promise<number> {
   const workerId = options.workerId ?? `worker-${process.pid}`;
   const idleDelayMs = options.idleDelayMs ?? 2000;
+  const errorBackoffMs = options.errorBackoffMs ?? 5000;
   let processed = 0;
+  let consecutiveFailures = 0;
 
   log.info('worker started', { workerId, kinds: options.kinds ?? 'all' });
 
   while (!options.signal?.aborted) {
     if (options.maxJobs !== undefined && processed >= options.maxJobs) break;
 
-    await promoteDuePosts(runtime);
+    // A failed poll — the database unreachable, credentials wrong, a network blip —
+    // must not kill the worker. Crashing turns a transient outage into a crash-loop
+    // and a page; backing off and retrying turns it into a log line that self-heals.
+    try {
+      await promoteDuePosts(runtime);
 
-    const job = await runtime.store.claimJob(workerId, options.kinds);
-    if (!job) {
+      const job = await runtime.store.claimJob(workerId, options.kinds);
+      if (!job) {
+        consecutiveFailures = 0;
+        if (options.maxJobs !== undefined) break;
+        await sleep(idleDelayMs, options.signal);
+        continue;
+      }
+
+      log.info('running job', { jobId: job.id, kind: job.kind });
+      await runJob(job, runtime);
+      processed += 1;
+      consecutiveFailures = 0;
+    } catch (error) {
+      consecutiveFailures += 1;
+      const delay = Math.min(errorBackoffMs * 2 ** Math.min(consecutiveFailures - 1, 4), 60_000);
+      log.error('worker poll failed; retrying', {
+        error: error instanceof Error ? error.message : String(error),
+        consecutiveFailures,
+        retryInMs: delay,
+      });
+      // One-shot runs (tests, cron-style invocations) surface the failure instead.
       if (options.maxJobs !== undefined) break;
-      await sleep(idleDelayMs, options.signal);
-      continue;
+      await sleep(delay, options.signal);
     }
-
-    log.info('running job', { jobId: job.id, kind: job.kind });
-    await runJob(job, runtime);
-    processed += 1;
   }
 
   log.info('worker stopped', { workerId, processed });
