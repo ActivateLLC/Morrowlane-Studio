@@ -130,7 +130,7 @@ function compareWithinDimension(
       metric,
       sampleSize: best.values.length + worst.values.length,
       confidence,
-      statement: `${sentenceCase(options.label(best.key))} generate ${roundedLift}× more ${METRIC_LABELS[metric]} than ${options.label(worst.key)}.`,
+      statement: `${sentenceCase(pluralize(options.label(best.key)))} generate ${roundedLift}× more ${METRIC_LABELS[metric]} than ${pluralize(options.label(worst.key))}.`,
       applied: false,
       createdAt: nowIso(),
     },
@@ -163,6 +163,14 @@ function confidenceFor(a: number[], b: number[]): number {
   const t = Math.abs(mean(a) - mean(b)) / standardError;
   const sampleBonus = Math.min(1, (a.length + b.length) / 30);
   return Number(Math.min(0.95, (t / (t + 2.5)) * 0.8 + sampleBonus * 0.15).toFixed(2));
+}
+
+/** "Instagram carousel" → "Instagram carousels", for statements about a class of posts. */
+function pluralize(value: string): string {
+  if (!value || /[0-9]$/.test(value)) return value;
+  if (/(s|x|z|ch|sh)$/i.test(value)) return `${value}es`;
+  if (/[^aeiou]y$/i.test(value)) return `${value.slice(0, -1)}ies`;
+  return `${value}s`;
 }
 
 function sentenceCase(value: string): string {

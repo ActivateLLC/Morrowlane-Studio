@@ -133,7 +133,7 @@ describe('computeInsights', () => {
     const insights = computeInsights('brd_1', performance);
     const formatInsight = insights.find((i) => i.dimension === 'format');
     expect(formatInsight?.statement).toBe(
-      'Instagram carousel generate 2.7× more qualified traffic than quote graphic.',
+      'Instagram carousels generate 2.7× more qualified traffic than quote graphics.',
     );
     expect(formatInsight?.lift).toBe(2.7);
     expect(formatInsight?.sampleSize).toBe(12);
