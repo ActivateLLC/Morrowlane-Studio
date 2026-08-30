@@ -3,6 +3,7 @@ import { Button, Label } from '@morrowlane/ui';
 import { startBrandBuilder } from '@/server/actions';
 import { requireSession } from '@/server/session';
 import { VoiceDictateButton } from './voice';
+import { SubmitButton } from '@/components/submit-button';
 
 const ACTIONS = [
   { value: 'buy', label: 'Buy' },
@@ -123,9 +124,9 @@ export default async function BrandBuilderPage() {
           </fieldset>
 
           <div className="flex flex-wrap items-center gap-3 pt-1">
-            <Button type="submit" size="lg">
+            <SubmitButton size="lg" pendingLabel="Building your profile…" hint="Reading your answers and writing your brand profile.">
               Build my brand profile
-            </Button>
+            </SubmitButton>
             <Link href="/" className="text-[13px] text-ink-faint hover:text-ink">
               I have a website after all
             </Link>

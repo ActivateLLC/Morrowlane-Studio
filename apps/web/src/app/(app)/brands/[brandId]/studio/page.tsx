@@ -4,6 +4,7 @@ import { generateFormat, runStudio } from '@/server/actions';
 import { requireBrand } from '@/server/session';
 import { STATUS_TONES, statusLabel } from '@/lib/format';
 import { AutoRefresh } from '@/components/auto-refresh';
+import { SubmitButton } from '@/components/submit-button';
 
 /**
  * The central creation interface. One large input; the intent parser decides whether
@@ -38,9 +39,9 @@ export default async function StudioPage({ params }: { params: Promise<{ brandId
               <p className="text-[12px] text-ink-faint max-sm:order-2">
                 Try: “Generate 30 days of content”, “10 TikTok scripts about {brain?.terminology[0] ?? 'your product'}”.
               </p>
-              <Button type="submit" size="lg" className="max-sm:w-full">
+              <SubmitButton size="lg" className="max-sm:w-full" pendingLabel="Writing…" hint="Grounding every line in your Brand Brain.">
                 Generate content
-              </Button>
+              </SubmitButton>
             </div>
           </form>
         </CardBody>
@@ -118,9 +119,9 @@ export default async function StudioPage({ params }: { params: Promise<{ brandId
                 </Select>
               </div>
               <div className="flex items-end">
-                <Button type="submit" variant="secondary">
+                <SubmitButton variant="secondary" pendingLabel="Writing…">
                   Generate
-                </Button>
+                </SubmitButton>
               </div>
             </form>
           </CardBody>

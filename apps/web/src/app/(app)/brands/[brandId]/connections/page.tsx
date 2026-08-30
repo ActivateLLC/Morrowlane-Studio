@@ -7,6 +7,8 @@ import { formatDateTime } from '@/lib/format';
 export default async function ConnectionsPage({ params }: { params: Promise<{ brandId: string }> }) {
   const { brandId } = await params;
   const { runtime } = await requireBrand(brandId);
+  // Real OAuth is not wired yet, so the page must say what it actually does.
+  const demoMode = runtime.demoMode;
 
   const connections = await runtime.store.listConnections(brandId);
   const connectedChannels = new Set(connections.map((connection) => connection.channel));
@@ -16,8 +18,20 @@ export default async function ConnectionsPage({ params }: { params: Promise<{ br
     <div className="space-y-6">
       <PageHeader
         title="Social connections"
-        description="Connect the accounts Morrowlane publishes to. Tokens are encrypted and never shown."
+        description="The accounts Morrowlane publishes to. Access tokens are encrypted at rest and never shown."
       />
+
+      {demoMode ? (
+        <Card className="border-caution/40 bg-caution-soft/40">
+          <CardBody className="py-3">
+            <p className="text-[13px] text-ink">
+              <span className="font-medium">These are sample connections.</span> Connecting a real account opens that
+              network&apos;s own sign-in, which isn&apos;t switched on in this workspace yet — so Connect below adds a
+              stand-in account you can schedule and publish against to see the whole flow.
+            </p>
+          </CardBody>
+        </Card>
+      ) : null}
 
       {connections.length > 0 ? (
         <Card>
@@ -56,19 +70,19 @@ export default async function ConnectionsPage({ params }: { params: Promise<{ br
                   <div>
                     <p className="text-[13px] font-medium text-ink">{provider.label}</p>
                     <p className="text-[12px] text-ink-faint">
-                      {provider.configured
+                      {demoMode
                         ? provider.capabilities.requiresMedia
-                          ? 'Requires rendered media'
-                          : 'Ready to connect'
-                        : 'Not available on this plan yet'}
+                          ? 'Sample account · needs rendered media'
+                          : 'Adds a sample account'
+                        : 'Real account connection is coming soon'}
                     </p>
                   </div>
                   {connected ? (
                     <Badge tone="positive">connected</Badge>
                   ) : (
                     <form action={connectDemoAccount.bind(null, brandId, provider.channel)}>
-                      <Button type="submit" variant="secondary" size="sm" disabled={!provider.configured}>
-                        Connect
+                      <Button type="submit" variant="secondary" size="sm" disabled={!demoMode}>
+                        {demoMode ? 'Add sample' : 'Connect'}
                       </Button>
                     </form>
                   )}
@@ -78,8 +92,8 @@ export default async function ConnectionsPage({ params }: { params: Promise<{ br
           })}
         </div>
         <p className="mt-3 text-[12px] text-ink-faint">
-          Connecting an account opens that network's own sign-in, so your password is never shared with
-          Morrowlane. You can disconnect at any time.
+          Morrowlane speaks each network&apos;s own publishing API and stores only an encrypted access token — never
+          your password. You can disconnect at any time.
         </p>
       </section>
     </div>

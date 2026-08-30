@@ -6,6 +6,7 @@ import { requireSession } from '@/server/session';
 import { Icon } from '@/components/icons';
 import { LogoMark } from '@/components/logo';
 import { TopBarPage } from '@/components/topbar';
+import { SubmitButton } from '@/components/submit-button';
 
 /**
  * The home screen opens with creation, never with analytics charts. With no brand yet
@@ -50,9 +51,9 @@ export default async function HomePage() {
                 required
                 className="h-11 w-full rounded-lg border border-shell-line bg-shell px-3.5 text-sm text-shell-bright placeholder:text-shell-text/60 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
               />
-              <Button type="submit" size="lg" className="px-5 max-sm:w-full">
+              <SubmitButton size="lg" className="px-5 max-sm:w-full" pendingLabel="Reading your site…" hint="This usually takes under a minute.">
                 Analyze
-              </Button>
+              </SubmitButton>
             </form>
             <div className="mt-5 flex items-center gap-3 text-[11px] uppercase tracking-wide text-shell-text/60">
               <span className="h-px flex-1 bg-shell-line" />
