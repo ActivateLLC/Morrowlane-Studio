@@ -21,8 +21,12 @@ const ITEMS = [
   { slug: 'analytics', label: 'Analytics', icon: 'chart' },
 ];
 
-/** The five tabs a phone thumb actually needs; the rest live behind Menu. */
-const MOBILE_TABS = ['', 'plan', 'calendar', 'library'];
+/**
+ * The tabs a phone thumb actually needs; the rest live behind Menu. Studio earns a slot
+ * over Plan: "the home screen opens with creation" is the product's invariant, and
+ * creating was the one primary job with no tab of its own.
+ */
+const MOBILE_TABS = ['', 'studio', 'calendar', 'library'];
 
 function NavList({
   brandId,

@@ -857,6 +857,16 @@ export async function deleteContentItem(brandId: string, contentId: string) {
   revalidatePath(`/brands/${brandId}/library`);
 }
 
+/**
+ * The same delete, from the detail page. Deleting there used to revalidate the library
+ * and leave the user looking at the item they had just removed, which then 404s on any
+ * interaction — so this one takes them back to the list.
+ */
+export async function deleteContentAndReturn(brandId: string, contentId: string) {
+  await deleteContentItem(brandId, contentId);
+  redirect(`/brands/${brandId}/library`);
+}
+
 /* ----------------------------- Intelligence ----------------------------- */
 
 export async function addCompetitor(brandId: string, formData: FormData) {

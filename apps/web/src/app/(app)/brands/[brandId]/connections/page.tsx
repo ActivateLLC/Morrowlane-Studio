@@ -1,10 +1,19 @@
 import Link from 'next/link';
-import { Alert, Badge, Button, Card, CardBody, PageHeader } from '@morrowlane/ui';
-import { connectBluesky, connectDemoAccount, disconnectAccount } from '@/server/actions';
+import { Alert, Badge, Button, Card, CardBody, CardHeader, PageHeader } from '@morrowlane/ui';
+import { checkConnections, connectBluesky, connectDemoAccount, disconnectAccount } from '@/server/actions';
 import { BlueskyConnectForm } from './bluesky-form';
 import { requireBrand } from '@/server/session';
-import { formatDateTime, channelLabel } from '@/lib/format';
+import { channelLabel, statusLabel } from '@/lib/format';
 import { ConfirmButton } from '@/components/confirm-button';
+import { SubmitButton } from '@/components/submit-button';
+import { LocalTime } from '@/components/local-time';
+
+/** Warns before the token dies rather than after a post has already failed. */
+function expiringSoon(expiresAt: string | null): boolean {
+  if (!expiresAt) return false;
+  const days = (new Date(expiresAt).getTime() - Date.now()) / 86_400_000;
+  return Number.isFinite(days) && days < 14;
+}
 
 /** Milestone 7: centralized OAuth connections behind the provider abstraction. */
 export default async function ConnectionsPage({
@@ -48,6 +57,14 @@ export default async function ConnectionsPage({
 
       {connections.length > 0 ? (
         <Card>
+          <CardHeader className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold text-ink">Connected accounts</h2>
+            <form action={checkConnections.bind(null, brandId)}>
+              <SubmitButton size="sm" variant="secondary" pendingLabel="Checking…">
+                Check they still work
+              </SubmitButton>
+            </form>
+          </CardHeader>
           <CardBody className="divide-y divide-line p-0">
             {connections.map((connection) => (
               <div key={connection.id} className="flex items-center justify-between gap-3 px-5 py-3">
@@ -55,11 +72,19 @@ export default async function ConnectionsPage({
                   <p className="text-[13px] font-medium text-ink">{connection.displayName}</p>
                   <p className="text-[12px] text-ink-faint">
                     {channelLabel(connection.channel)}
-                    {connection.lastValidatedAt ? ` · validated ${formatDateTime(connection.lastValidatedAt)}` : ''}
+                    {connection.lastValidatedAt ? ' · checked ' : ''}
+                    {connection.lastValidatedAt ? <LocalTime iso={connection.lastValidatedAt} /> : null}
                   </p>
+                  {expiringSoon(connection.expiresAt) ? (
+                    <p className="text-[12px] text-caution">
+                      Access expires <LocalTime iso={connection.expiresAt!} /> — reconnect to keep publishing.
+                    </p>
+                  ) : null}
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge tone={connection.status === 'active' ? 'positive' : 'critical'}>{connection.status}</Badge>
+                  <Badge tone={connection.status === 'active' ? 'positive' : 'critical'}>
+                    {statusLabel(connection.status)}
+                  </Badge>
                   <form action={disconnectAccount.bind(null, brandId, connection.id)}>
                     <ConfirmButton
                       confirmLabel="Disconnect"

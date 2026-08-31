@@ -5,7 +5,7 @@ import { Badge, Button, Card, CardBody, CardHeader, Stat } from '@morrowlane/ui'
 import { formatProfile } from '@morrowlane/shared';
 import {
   approveContent,
-  deleteContentItem,
+  deleteContentAndReturn,
   duplicateContent,
   generateVariants,
   renderMedia,
@@ -145,7 +145,7 @@ export default async function ContentDetailPage({
       <LibraryItem
         item={item}
         approve={approveContent.bind(null, brandId, item.id)}
-        remove={deleteContentItem.bind(null, brandId, item.id)}
+        remove={deleteContentAndReturn.bind(null, brandId, item.id)}
         saveBody={updateContentBody.bind(null, brandId, item.id)}
         schedule={scheduleContentItem.bind(null, brandId, item.id)}
         defaultOpen
