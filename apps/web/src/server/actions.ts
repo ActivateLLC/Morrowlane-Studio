@@ -308,6 +308,37 @@ export async function unlockBrainField(brandId: string, path: string) {
   revalidatePath(`/brands/${brandId}/brain`);
 }
 
+/**
+ * Three samples in the brand's current voice, generated but never saved. Every
+ * competitor makes you commit to a campaign before you can hear whether the AI sounds
+ * like you; this closes that loop in seconds, and makes an edit to the voice fields
+ * feel consequential immediately.
+ */
+export async function previewVoice(
+  brandId: string,
+  formData: FormData,
+): Promise<{ samples: string[]; error: string | null }> {
+  const { runtime } = await requireBrandWrite(brandId);
+  const brain = await runtime.store.getBrain(brandId);
+  if (!brain) return { samples: [], error: 'This brand has no profile yet.' };
+
+  try {
+    const { generateContent } = await import('@morrowlane/content-engine');
+    const result = await generateContent(runtime.gateway, {
+      brain,
+      format: 'instagram_post',
+      count: 3,
+      productName: String(formData.get('productName') ?? '') || null,
+      lineage: { sourceType: 'brand' },
+    });
+    // Deliberately not saved: this is a listening test, not content.
+    return { samples: result.items.map((item) => item.hook || item.body.split('\n')[0] || item.title), error: null };
+  } catch (error) {
+    log.error('voice preview failed', { brandId, error: String(error) });
+    return { samples: [], error: 'Could not write samples just now. Try again in a moment.' };
+  }
+}
+
 /** Adds a question customers actually ask. Crawls miss these; owners never do. */
 export async function addBrainFaq(brandId: string, formData: FormData) {
   const { runtime } = await requireBrandWrite(brandId);

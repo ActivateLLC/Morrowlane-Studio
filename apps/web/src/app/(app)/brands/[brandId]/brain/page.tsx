@@ -8,6 +8,7 @@ import {
   reanalyzeBrand,
   removeBrainFaq,
   removeBrainProduct,
+  previewVoice,
   removeBrainTestimonial,
   unlockBrainField,
   updateBrainField,
@@ -17,6 +18,7 @@ import { ConfirmButton } from '@/components/confirm-button';
 import { SubmitButton } from '@/components/submit-button';
 import { EditableField } from './editable';
 import { BrandGraph } from './graph';
+import { VoicePreview } from './voice-preview';
 
 /**
  * The Brand Brain: what Morrowlane believes about the business, and the place to
@@ -150,6 +152,21 @@ export default async function BrainPage({ params }: { params: Promise<{ brandId:
             ) : null}
           </CardBody>
         ) : null}
+      </Card>
+
+      <Card id="preview" className="scroll-mt-20">
+        <CardHeader>
+          <h2 className="text-sm font-semibold text-ink">Hear it before you commit</h2>
+          <p className="mt-0.5 text-[12px] text-ink-faint">
+            Three openers in your voice, from what the Brain knows right now.
+          </p>
+        </CardHeader>
+        <CardBody>
+          <VoicePreview
+            products={brain.products.map((product) => product.name)}
+            preview={previewVoice.bind(null, brandId)}
+          />
+        </CardBody>
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
