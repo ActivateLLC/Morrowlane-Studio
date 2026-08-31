@@ -89,7 +89,9 @@ export default async function RemixPage({ params }: { params: Promise<{ brandId:
                         return acc;
                       }, {}),
                     ).map(([format, count]) => (
-                      <Badge key={format} tone={STATUS_TONES[items[0]!.status] ?? 'neutral'}>
+                      // A count of formats has no status; colouring it by the first
+                      // item's status implied one.
+                      <Badge key={format} tone="neutral">
                         {count}× {statusLabel(format)}
                       </Badge>
                     ))}

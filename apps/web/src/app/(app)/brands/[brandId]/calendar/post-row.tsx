@@ -3,7 +3,9 @@
 import { useState, useTransition } from 'react';
 import type { ScheduledPost } from '@morrowlane/shared';
 import { Badge, Button, cn } from '@morrowlane/ui';
-import { STATUS_TONES, statusLabel } from '@/lib/format';
+import { STATUS_TONES, channelLabel, statusLabel } from '@/lib/format';
+import { LocalTime } from '@/components/local-time';
+import { isoToLocalInput, localInputToIso } from '@/lib/local-datetime';
 
 /** One post on the calendar: reschedule, publish now, or cancel, inline. */
 export function PostRow({
@@ -21,7 +23,6 @@ export function PostRow({
 }) {
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
-  const time = new Date(post.scheduledFor).toISOString().slice(11, 16);
   const editable = post.status === 'scheduled' || post.status === 'failed';
 
   return (
@@ -36,7 +37,7 @@ export function PostRow({
         <p className="truncate text-[12px] font-medium text-ink">{title}</p>
         <p className="mt-0.5 flex items-center justify-between text-[11px] text-ink-faint">
           <span>
-            {time} UTC · {post.channel}
+            <LocalTime iso={post.scheduledFor} mode="time" /> · {channelLabel(post.channel)}
           </span>
           <Badge tone={STATUS_TONES[post.status]}>{statusLabel(post.status)}</Badge>
         </p>
@@ -44,23 +45,29 @@ export function PostRow({
 
       {open && editable ? (
         <div className="mt-2 space-y-2 border-t border-line pt-2">
-          {post.lastError ? <p className="text-[11px] text-critical">{post.lastError}</p> : null}
+          {post.status === 'failed' ? (
+            <p className="rounded bg-critical-soft px-2 py-1.5 text-[11px] text-critical">
+              {post.lastError ?? 'This post did not go out.'} Fix the account, then try again.
+            </p>
+          ) : null}
           <div className="flex items-center gap-1.5">
             <input
               type="datetime-local"
           aria-label="Reschedule this post"
-              defaultValue={post.scheduledFor.slice(0, 16)}
+              defaultValue={isoToLocalInput(post.scheduledFor)}
               className="h-7 flex-1 rounded border border-line bg-white px-1.5 text-[11px]"
               onChange={(event) => {
                 const value = event.target.value;
                 if (!value) return;
-                startTransition(() => reschedule(new Date(`${value}:00Z`).toISOString()));
+                const iso = localInputToIso(value);
+                if (!iso) return;
+                startTransition(() => reschedule(iso));
               }}
             />
           </div>
           <div className="flex gap-1.5">
             <Button size="sm" variant="secondary" disabled={pending} onClick={() => startTransition(() => publish())}>
-              Publish now
+              {post.status === 'failed' ? 'Try again' : 'Publish now'}
             </Button>
             <Button size="sm" variant="ghost" disabled={pending} onClick={() => startTransition(() => cancel())}>
               Remove

@@ -130,27 +130,147 @@ function reconcileProducts(
   return [...merged, ...missed];
 }
 
+/** One unfinished piece of the brand profile, phrased as the action that finishes it. */
+export interface BrainChecklistItem {
+  id: string;
+  /** Imperative, specific: what the user does, not what the field is called. */
+  label: string;
+  /** Why it is worth doing — shown under the label. */
+  reason: string;
+  done: boolean;
+  weight: number;
+  /** Anchor on the Brand Brain page, or a route relative to the brand. */
+  target: string;
+}
+
+/**
+ * The completeness model, as a list rather than a number. The score is derived from
+ * this same array, so the percentage and the "what's missing" list can never disagree —
+ * a mute 40% told users they were graded; the list tells them what to do next.
+ */
+export function completenessChecklist(brain: BrandBrain): BrainChecklistItem[] {
+  const productName = brain.products[0]?.name;
+  return [
+    {
+      id: 'companyName',
+      label: 'Confirm your business name',
+      reason: 'Every piece of content signs off with it.',
+      done: Boolean(brain.identity.companyName),
+      weight: 1,
+      target: '#identity',
+    },
+    {
+      id: 'description',
+      label: 'Describe what your business does',
+      reason: 'The one line everything else is written around.',
+      done: Boolean(brain.identity.description),
+      weight: 1,
+      target: '#identity',
+    },
+    {
+      id: 'audience',
+      label: 'Confirm who you sell to',
+      reason: 'Without it, content is written for everyone and lands with no one.',
+      done: brain.identity.audience.length > 0,
+      weight: 1,
+      target: '#identity',
+    },
+    {
+      id: 'category',
+      label: 'Set your industry',
+      reason: 'Sharpens examples and the words your customers actually use.',
+      done: Boolean(brain.identity.category),
+      weight: 0.5,
+      target: '#identity',
+    },
+    {
+      id: 'voice',
+      label: 'Check how you want to sound',
+      reason: 'These traits shape the wording of every post.',
+      done: brain.voice.traits.length > 0,
+      weight: 1,
+      target: '#voice',
+    },
+    {
+      id: 'products',
+      label: 'Add what you sell',
+      reason: 'Content with nothing to point at cannot ask for the sale.',
+      done: brain.products.length > 0,
+      weight: 2,
+      target: '#products',
+    },
+    {
+      id: 'benefits',
+      label: productName ? `List what makes ${productName} worth buying` : 'List what makes your work worth buying',
+      reason: 'Benefits are what posts argue; features are what they list.',
+      done: brain.products.some((p) => p.benefits.length > 0),
+      weight: 1,
+      target: '#products',
+    },
+    {
+      id: 'faqs',
+      label: 'Add the questions customers always ask',
+      reason: 'The richest source of content you already own.',
+      done: brain.faqs.length > 0,
+      weight: 1,
+      target: '#knowledge',
+    },
+    {
+      id: 'testimonials',
+      label: 'Add one real customer quote',
+      reason: 'Proof outperforms claims, and it is yours to use.',
+      done: brain.testimonials.length > 0,
+      weight: 1,
+      target: '#knowledge',
+    },
+    {
+      id: 'offers',
+      label: 'Add a current offer or promotion',
+      reason: 'Gives campaigns something concrete to drive toward.',
+      done: brain.offers.length > 0,
+      weight: 0.5,
+      target: '#knowledge',
+    },
+    {
+      id: 'colors',
+      label: 'Set your brand colours',
+      reason: 'Used whenever Morrowlane makes an image for you.',
+      done: brain.visuals.colors.length > 0,
+      weight: 0.5,
+      target: '#knowledge',
+    },
+    {
+      id: 'logoUrls',
+      label: 'Upload your logo',
+      reason: 'Used whenever Morrowlane makes an image for you.',
+      done: brain.visuals.logoUrls.length > 0,
+      weight: 0.5,
+      target: '#knowledge',
+    },
+    {
+      id: 'preferredCtas',
+      label: 'Pick the action you want people to take',
+      reason: 'Book, buy, call or message — content closes on this.',
+      done: brain.rules.preferredCtas.length > 0,
+      weight: 1,
+      target: '#rules',
+    },
+    {
+      id: 'socialLinks',
+      label: 'Add your social profiles',
+      reason: 'Lets Morrowlane cross-reference the accounts you already run.',
+      done: brain.socialLinks.length > 0,
+      weight: 0.5,
+      target: '#knowledge',
+    },
+  ];
+}
+
 /** Drives the "finish your brand profile" prompts rather than being a vanity number. */
 export function scoreCompleteness(brain: BrandBrain): number {
-  const checks: Array<[boolean, number]> = [
-    [Boolean(brain.identity.companyName), 1],
-    [Boolean(brain.identity.description), 1],
-    [brain.identity.audience.length > 0, 1],
-    [Boolean(brain.identity.category), 0.5],
-    [brain.voice.traits.length > 0, 1],
-    [brain.products.length > 0, 2],
-    [brain.products.some((p) => p.benefits.length > 0), 1],
-    [brain.faqs.length > 0, 1],
-    [brain.testimonials.length > 0, 1],
-    [brain.offers.length > 0, 0.5],
-    [brain.visuals.colors.length > 0, 0.5],
-    [brain.visuals.logoUrls.length > 0, 0.5],
-    [brain.rules.preferredCtas.length > 0, 1],
-    [brain.socialLinks.length > 0, 0.5],
-  ];
-
-  const earned = checks.reduce((sum, [passed, weight]) => sum + (passed ? weight : 0), 0);
-  const total = checks.reduce((sum, [, weight]) => sum + weight, 0);
+  const checks = completenessChecklist(brain);
+  const earned = checks.reduce((sum, check) => sum + (check.done ? check.weight : 0), 0);
+  const total = checks.reduce((sum, check) => sum + check.weight, 0);
   return Number((earned / total).toFixed(2));
 }
 

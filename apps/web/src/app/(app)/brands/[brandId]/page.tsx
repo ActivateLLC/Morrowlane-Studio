@@ -4,9 +4,11 @@ import { addDays, nowIso } from '@morrowlane/shared';
 import { Badge, Button, Card, CardBody, CardHeader, Input, ProgressBar, Stat } from '@morrowlane/ui';
 import { actOnOpportunity, deleteBrandAction, retryWithNewAddress } from '@/server/actions';
 import { requireBrand } from '@/server/session';
-import { formatDateTime, formatNumber, STATUS_TONES, statusLabel } from '@/lib/format';
+import { formatDateTime, formatNumber, STATUS_TONES, statusLabel, channelLabel } from '@/lib/format';
 import { AutoRefresh } from '@/components/auto-refresh';
 import { SubmitButton } from '@/components/submit-button';
+import { ConfirmButton } from '@/components/confirm-button';
+import { LocalTime } from '@/components/local-time';
 
 /**
  * The brand home. It opens with creation — the three doors from the spec — and only
@@ -43,17 +45,28 @@ export default async function BrandTodayPage({ params }: { params: Promise<{ bra
                     Answer a few questions instead →
                   </Link>
                   <form action={deleteBrandAction.bind(null, brandId)}>
-                    <Button type="submit" variant="ghost" size="sm">
+                    <ConfirmButton
+                      confirmLabel="Delete for good"
+                      explanation="This removes the brand and everything in it."
+                    >
                       Delete this brand
-                    </Button>
+                    </ConfirmButton>
                   </form>
                 </div>
               </>
             ) : (
               <>
-                <p className="font-medium text-ink">Morrowlane is reading {brand.websiteUrl}</p>
+                {/* The Brand Builder path arrives here with no website. Promising to read
+                    a sitemap to someone who just said they have no site is nonsense. */}
+                <p className="font-medium text-ink">
+                  {brand.websiteUrl
+                    ? `Morrowlane is reading ${brand.websiteUrl}`
+                    : 'Morrowlane is building your brand profile'}
+                </p>
                 <p className="mt-1 text-sm text-ink-soft">
-                  Discovering the sitemap, reading every page that matters, and building the brand profile.
+                  {brand.websiteUrl
+                    ? 'Discovering the sitemap, reading every page that matters, and building the brand profile.'
+                    : 'Turning your answers into the voice, products and rules your content is written from.'}
                 </p>
                 <div className="mx-auto mt-5 max-w-sm">
                   <ProgressBar value={running?.progress ?? 0.05} label={running?.progressLabel ?? 'Starting'} />
@@ -145,8 +158,8 @@ export default async function BrandTodayPage({ params }: { params: Promise<{ bra
                       <p className="text-sm font-medium text-ink">{opportunity.headline}</p>
                       <p className="mt-0.5 text-[13px] text-ink-soft">{opportunity.reasoning}</p>
                       <ul className="mt-2 space-y-0.5 break-words text-[12px] text-ink-faint">
-                        {opportunity.evidence.slice(0, 3).map((line) => (
-                          <li key={line}>• {line}</li>
+                        {opportunity.evidence.slice(0, 3).map((line, index) => (
+                          <li key={`${line}-${index}`}>• {line}</li>
                         ))}
                       </ul>
                     </div>
@@ -183,7 +196,7 @@ export default async function BrandTodayPage({ params }: { params: Promise<{ bra
                       <div className="min-w-0">
                         <p className="truncate text-[13px] font-medium text-ink">{item?.title ?? post.contentId}</p>
                         <p className="text-[12px] text-ink-faint">
-                          {formatDateTime(post.scheduledFor)} · {post.channel}
+                          <LocalTime iso={post.scheduledFor} /> · {channelLabel(post.channel)}
                         </p>
                       </div>
                       <Badge tone={STATUS_TONES[post.status]}>{statusLabel(post.status)}</Badge>
@@ -211,7 +224,7 @@ export default async function BrandTodayPage({ params }: { params: Promise<{ bra
                   <div key={item.id} className="flex items-center justify-between gap-3 px-5 py-3">
                     <div className="min-w-0">
                       <p className="truncate text-[13px] font-medium text-ink">{item.title}</p>
-                      <p className="text-[12px] text-ink-faint">{statusLabel(item.format)} · {item.channel}</p>
+                      <p className="text-[12px] text-ink-faint">{statusLabel(item.format)} · {channelLabel(item.channel)}</p>
                     </div>
                     <Badge tone={STATUS_TONES[item.status]}>{statusLabel(item.status)}</Badge>
                   </div>

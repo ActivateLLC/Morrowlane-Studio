@@ -1,4 +1,9 @@
-import type { ContentItem, ScheduledPost } from '@morrowlane/shared';
+import { CHANNEL_PROFILES, type Channel, type ContentItem, type ScheduledPost } from '@morrowlane/shared';
+
+/** Channels are stored as ids ("google_business"); people read names ("Google Business"). */
+export function channelLabel(channel: string): string {
+  return CHANNEL_PROFILES[channel as Channel]?.label ?? statusLabel(channel);
+}
 
 export function formatDay(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });

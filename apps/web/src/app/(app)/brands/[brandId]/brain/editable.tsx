@@ -3,6 +3,15 @@
 import { useState, useTransition } from 'react';
 import { Button, Input, Label, Textarea } from '@morrowlane/ui';
 
+function PencilIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </svg>
+  );
+}
+
 function LockIcon() {
   return (
     <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
@@ -17,6 +26,7 @@ export function EditableField({
   label,
   value,
   save,
+  unlock,
   multiline = false,
   hint,
   locked = false,
@@ -24,6 +34,8 @@ export function EditableField({
   label: string;
   value: string;
   save: (value: string) => Promise<void>;
+  /** Releases the field back to re-analysis. Without it, one edit forfeits enrichment. */
+  unlock?: () => Promise<void>;
   multiline?: boolean;
   hint?: string;
   locked?: boolean;
@@ -56,9 +68,12 @@ export function EditableField({
             setDraft(value);
             setEditing(true);
           }}
-          className="w-full rounded-lg px-3 py-2 text-left text-[13px] text-ink hover:bg-surface-sunken"
+          className="flex w-full items-start justify-between gap-2 rounded-lg px-3 py-2 text-left text-[13px] text-ink hover:bg-surface-sunken"
         >
           {value ? <span className="whitespace-pre-line">{value}</span> : <span className="text-ink-faint">Add…</span>}
+          <span className="mt-0.5 shrink-0 text-ink-faint">
+            <PencilIcon />
+          </span>
         </button>
       </div>
     );
@@ -89,7 +104,28 @@ export function EditableField({
         <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>
           Cancel
         </Button>
+        {locked && unlock ? (
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={pending}
+            onClick={() =>
+              startTransition(async () => {
+                await unlock();
+                setEditing(false);
+              })
+            }
+          >
+            Unlock
+          </Button>
+        ) : null}
       </div>
+      {/* Said at the moment of commitment, not in a hover tooltip no phone can show. */}
+      <p className="mt-1.5 text-[11px] text-ink-faint">
+        {locked
+          ? 'This field is yours — re-reading your website will not overwrite it. Unlock to let it update again.'
+          : 'Saving locks this field, so re-reading your website will not overwrite it.'}
+      </p>
     </div>
   );
 }

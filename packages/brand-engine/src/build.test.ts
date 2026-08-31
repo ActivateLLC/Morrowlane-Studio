@@ -2,7 +2,7 @@ import { ORCA_ORIGIN, ORCA_SITE, crawlSite, createStaticFetcher } from '@morrowl
 import { LOCAL_COMPOSERS, createGateway, generateContent } from '@morrowlane/content-engine';
 import type { BrandBrain, CrawledPage } from '@morrowlane/shared';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { buildBrandBrain, preserveLockedFields, scoreCompleteness } from './build.js';
+import { buildBrandBrain, completenessChecklist, preserveLockedFields, scoreCompleteness } from './build.js';
 import { detectCompliancePresets } from './compliance.js';
 import { BRAND_COMPOSERS } from './registry.js';
 import { extractSignals } from './signals.js';
@@ -220,5 +220,32 @@ describe('generation grounded in the Brand Brain', () => {
     const first = await generateContent(gateway, { brain, format: 'linkedin_post', count: 3, topic: 'utilization' });
     const second = await generateContent(gateway, { brain, format: 'linkedin_post', count: 3, topic: 'utilization' });
     expect(first.items.map((i) => i.body)).toEqual(second.items.map((i) => i.body));
+  });
+});
+
+describe('completenessChecklist', () => {
+  it('agrees with the score it derives, so the meter and the to-do list cannot diverge', () => {
+    const checklist = completenessChecklist(brain);
+    const earned = checklist.reduce((sum, item) => sum + (item.done ? item.weight : 0), 0);
+    const total = checklist.reduce((sum, item) => sum + item.weight, 0);
+    expect(Number((earned / total).toFixed(2))).toBe(scoreCompleteness(brain));
+  });
+
+  it('names the gap as an action with somewhere to go', () => {
+    const bare = structuredClone(brain);
+    bare.faqs = [];
+    const faqs = completenessChecklist(bare).find((item) => item.id === 'faqs');
+    expect(faqs?.done).toBe(false);
+    expect(faqs?.label).toMatch(/add/i);
+    expect(faqs?.target).toBe('#knowledge');
+  });
+
+  it('counts a filled gap as done, so acting moves the number', () => {
+    const before = scoreCompleteness({ ...brain, testimonials: [] });
+    const after = scoreCompleteness({
+      ...brain,
+      testimonials: [{ quote: 'They turned up the same day.', attribution: 'Dana R.' }],
+    });
+    expect(after).toBeGreaterThan(before);
   });
 });

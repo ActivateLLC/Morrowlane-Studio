@@ -1,9 +1,10 @@
 import { groupByDay } from '@morrowlane/campaign-engine';
 import { addDays, dayKey, dayRange, nowIso, startOfUtcDay } from '@morrowlane/shared';
-import { Badge, Button, Card, CardBody, PageHeader } from '@morrowlane/ui';
+import { Alert, Badge, Button, Card, CardBody, PageHeader } from '@morrowlane/ui';
 import { cancelPost, fillMonthAction, publishNow, reschedulePost } from '@/server/actions';
 import { requireBrand } from '@/server/session';
-import { STATUS_TONES, statusLabel } from '@/lib/format';
+import { STATUS_TONES, channelLabel, statusLabel } from '@/lib/format';
+import { LocalTime } from '@/components/local-time';
 import { PostRow } from './post-row';
 
 /** The unified calendar. "Fill My Month" is the major action, exactly as specced. */
@@ -24,6 +25,10 @@ export default async function CalendarPage({ params }: { params: Promise<{ brand
   const byDay = groupByDay(posts.filter((post) => post.status !== 'cancelled'));
   const days = dayRange(start, 28);
 
+  // A post that failed to publish is the single most important thing on this screen, and
+  // it was previously only visible by opening the right day and expanding the right row.
+  const failed = posts.filter((post) => post.status === 'failed');
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -37,6 +42,26 @@ export default async function CalendarPage({ params }: { params: Promise<{ brand
           </form>
         }
       />
+
+      {failed.length > 0 ? (
+        <Alert
+          tone="critical"
+          title={`${failed.length} ${failed.length === 1 ? 'post' : 'posts'} did not go out`}
+        >
+          <ul className="space-y-1">
+            {failed.slice(0, 4).map((post) => (
+              <li key={post.id} className="text-[13px]">
+                <LocalTime iso={post.scheduledFor} /> · {channelLabel(post.channel)} —{' '}
+                {contentById.get(post.contentId)?.title ?? 'Scheduled post'}
+                {post.lastError ? `: ${post.lastError}` : ''}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-[12px]">
+            Open the day below and choose “Try again”, or reconnect the account first.
+          </p>
+        </Alert>
+      ) : null}
 
       {/* Weekday headings only make sense once the columns are weeks. */}
       <div className="mb-2 hidden grid-cols-7 gap-3 lg:grid">

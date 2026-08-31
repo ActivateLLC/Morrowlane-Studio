@@ -2,7 +2,7 @@ import { CONTENT_FORMATS, FORMAT_PROFILES } from '@morrowlane/shared';
 import { Badge, Button, Card, CardBody, Input, Label, PageHeader, ProgressBar, Select, Textarea } from '@morrowlane/ui';
 import { generateFormat, runStudio } from '@/server/actions';
 import { requireBrand } from '@/server/session';
-import { STATUS_TONES, statusLabel } from '@/lib/format';
+import { STATUS_TONES, statusLabel, channelLabel } from '@/lib/format';
 import { AutoRefresh } from '@/components/auto-refresh';
 import { SubmitButton } from '@/components/submit-button';
 import { SetupNeeded } from '@/components/setup-needed';
@@ -94,7 +94,7 @@ export default async function StudioPage({ params }: { params: Promise<{ brandId
         <h2 className="mb-3 text-sm font-semibold text-ink">Or pick a format</h2>
         <Card>
           <CardBody>
-            <form action={generateFormat.bind(null, brandId)} className="grid gap-4 sm:grid-cols-[1fr_120px_1fr_auto]">
+            <form action={generateFormat.bind(null, brandId)} className="grid gap-4 sm:grid-cols-[1fr_120px_1fr_auto] sm:grid-rows-[auto_auto]">
               <div>
                 <Label htmlFor="format">Format</Label>
                 <Select id="format" name="format" defaultValue="instagram_post">
@@ -125,6 +125,16 @@ export default async function StudioPage({ params }: { params: Promise<{ brandId
                   Generate
                 </SubmitButton>
               </div>
+              {/* The action has always read `topic`; without these inputs there was no way
+                  to say what the posts should be about. */}
+              <div className="sm:col-span-4">
+                <Label htmlFor="topic">What should these be about? (optional)</Label>
+                <Input
+                  id="topic"
+                  name="topic"
+                  placeholder="Autumn service checks, the new studio, hiring a second van…"
+                />
+              </div>
             </form>
           </CardBody>
         </Card>
@@ -143,7 +153,7 @@ export default async function StudioPage({ params }: { params: Promise<{ brandId
                   </div>
                   <p className="line-clamp-3 whitespace-pre-line text-[13px] text-ink-soft">{item.body}</p>
                   <p className="mt-2 text-[12px] text-ink-faint">
-                    {statusLabel(item.format)} · {item.channel}
+                    {statusLabel(item.format)} · {channelLabel(item.channel)}
                   </p>
                 </CardBody>
               </Card>

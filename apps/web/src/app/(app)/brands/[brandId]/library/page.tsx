@@ -18,18 +18,34 @@ export default async function LibraryPage({
   const query = await searchParams;
   const { runtime } = await requireBrand(brandId);
 
+  // A library capped at 30 with no way forward hid everything a working brand makes
+  // in its first fortnight. ContentQuery already supported offset in both stores.
+  const pageSize = 30;
+  const pageNumber = Math.max(1, Number(query['page'] ?? 1) || 1);
   const { items, total } = await runtime.store.queryContent({
     brandId,
     search: query['q'] || undefined,
     channel: query['channel'] || undefined,
     format: query['format'] || undefined,
     status: query['status'] ? [query['status'] as never] : undefined,
-    limit: 30,
+    limit: pageSize,
+    offset: (pageNumber - 1) * pageSize,
   });
+
+  const lastPage = Math.max(1, Math.ceil(total / pageSize));
+  const pageHref = (target: number) => {
+    const next = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value && key !== 'page') next.set(key, value);
+    }
+    if (target > 1) next.set('page', String(target));
+    const suffix = next.toString();
+    return `/brands/${brandId}/library${suffix ? `?${suffix}` : ''}`;
+  };
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Content library" description={`${total} pieces of content, all reusable.`} />
+      <PageHeader title="Content library" description={`${total} ${total === 1 ? 'piece' : 'pieces'} of content, all reusable.`} />
 
       <form className="grid gap-3 sm:grid-cols-[1fr_170px_170px_150px_auto]">
         <Input aria-label="Search content" name="q" placeholder="Search content…" defaultValue={query['q'] ?? ''} />
@@ -83,6 +99,32 @@ export default async function LibraryPage({
           ))}
         </div>
       )}
+
+      {lastPage > 1 ? (
+        <nav className="flex items-center justify-between gap-3" aria-label="Library pages">
+          {pageNumber > 1 ? (
+            <Link href={pageHref(pageNumber - 1)}>
+              <Button variant="secondary" size="sm">
+                Newer
+              </Button>
+            </Link>
+          ) : (
+            <span />
+          )}
+          <p className="text-[12px] text-ink-faint">
+            Page {pageNumber} of {lastPage}
+          </p>
+          {pageNumber < lastPage ? (
+            <Link href={pageHref(pageNumber + 1)}>
+              <Button variant="secondary" size="sm">
+                Older
+              </Button>
+            </Link>
+          ) : (
+            <span />
+          )}
+        </nav>
+      ) : null}
     </div>
   );
 }

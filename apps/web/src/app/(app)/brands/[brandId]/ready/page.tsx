@@ -1,7 +1,10 @@
 import Link from 'next/link';
 import { addDays, nowIso } from '@morrowlane/shared';
-import { Button, Card, CardBody, Stat } from '@morrowlane/ui';
+import { Alert, Button, Card, CardBody, ProgressBar, Stat } from '@morrowlane/ui';
 import { requireBrand } from '@/server/session';
+import { channelLabel } from '@/lib/format';
+import { LocalTime } from '@/components/local-time';
+import { AutoRefresh } from '@/components/auto-refresh';
 
 /**
  * The golden-path completion screen — the "your month is ready" moment. It summarises the
@@ -54,7 +57,51 @@ export default async function ReadyPage({
     days = new Set(posts.map((p) => p.scheduledFor.slice(0, 10))).size;
   }
 
-  // Nothing was scheduled: congratulating the user here would simply be untrue.
+  // The completion screen is the natural moment to say whether any of this can actually
+  // go out. For a brand-new user nothing is connected, and staying silent here means
+  // their month sits unpublishable forever.
+  const connections = await runtime.store.listConnections(brandId);
+  const activeConnections = connections.filter((connection) => connection.status === 'active');
+  const nextPosts = await runtime.store.queryScheduledPosts({
+    brandId,
+    status: ['scheduled'],
+    from: nowIso(),
+    to: addDays(nowIso(), 35),
+  });
+  const upcoming = [...nextPosts]
+    .sort((a, b) => a.scheduledFor.localeCompare(b.scheduledFor))
+    .slice(0, 4);
+  const upcomingTitles = new Map(
+    (await runtime.store.queryContent({ brandId, limit: 500 })).items.map((item) => [item.id, item.title]),
+  );
+
+  // Nothing scheduled *yet* is not the same as nothing scheduled. With an external
+  // worker the job is still running when this page first renders, and telling the user
+  // their month failed while it is being written is the worst possible moment to be
+  // wrong. Show the work instead.
+  if (pieces === 0) {
+    const running = (await runtime.store.listJobs(brandId, { status: ['running', 'queued'], limit: 1 }))[0];
+    if (running) {
+      return (
+        <div className="mx-auto max-w-lg pt-10">
+          <Card>
+            <CardBody className="py-8 text-center">
+              <h1 className="text-xl font-semibold tracking-tight text-ink">Morrowlane is writing your month</h1>
+              <p className="mt-1 text-[13px] text-ink-soft">
+                Planning the run, writing each post, and placing them on your calendar.
+              </p>
+              <div className="mx-auto mt-5 max-w-sm">
+                <ProgressBar value={running.progress || 0.05} label={running.progressLabel ?? 'Starting'} />
+              </div>
+              <AutoRefresh intervalMs={3000} label="Writing your content…" />
+            </CardBody>
+          </Card>
+        </div>
+      );
+    }
+  }
+
+  // Genuinely nothing: congratulating the user here would simply be untrue.
   if (pieces === 0) {
     return (
       <div className="mx-auto max-w-lg pt-10">
@@ -79,7 +126,7 @@ export default async function ReadyPage({
   }
 
   return (
-    <div className="mx-auto max-w-lg pt-10">
+    <div className="mx-auto max-w-lg space-y-4 pt-10">
       <Card>
         <CardBody className="py-8 text-center">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-accent-soft text-accent-strong">
@@ -112,6 +159,49 @@ export default async function ReadyPage({
           </div>
         </CardBody>
       </Card>
+
+      {activeConnections.length === 0 ? (
+        <Alert tone="caution" title="Nothing is connected to publish these yet">
+          <p>
+            These posts are on your calendar, but Morrowlane has no account to send them from. Connecting one takes
+            about two minutes and they go out on schedule.
+          </p>
+          <div className="mt-3">
+            <Link href={`${base}/connections`}>
+              <Button size="sm" variant="secondary">
+                Connect an account
+              </Button>
+            </Link>
+          </div>
+        </Alert>
+      ) : null}
+
+      {upcoming.length > 0 ? (
+        <Card>
+          <CardBody className="p-0">
+            <p className="px-5 pt-4 text-sm font-semibold text-ink">What happens next</p>
+            <ul className="mt-2 divide-y divide-line">
+              {upcoming.map((post) => (
+                <li key={post.id} className="px-5 py-3">
+                  <p className="truncate text-[13px] font-medium text-ink">
+                    {upcomingTitles.get(post.contentId) ?? 'Scheduled post'}
+                  </p>
+                  <p className="text-[12px] text-ink-faint">
+                    <LocalTime iso={post.scheduledFor} showZone /> · {channelLabel(post.channel)}
+                  </p>
+                </li>
+              ))}
+            </ul>
+            <p className="px-5 py-3 text-[12px] text-ink-soft">
+              Morrowlane watches how these perform and puts new opportunities on{' '}
+              <Link href={base} className="font-medium text-accent-strong hover:underline">
+                Today
+              </Link>
+              .
+            </p>
+          </CardBody>
+        </Card>
+      ) : null}
     </div>
   );
 }

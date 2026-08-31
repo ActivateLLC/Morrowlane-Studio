@@ -4,6 +4,8 @@ import { startBrandBuilder } from '@/server/actions';
 import { requireSession } from '@/server/session';
 import { VoiceDictateButton } from './voice';
 import { SubmitButton } from '@/components/submit-button';
+import { ImageUpload } from './image-upload';
+import { BrandFeel } from './brand-feel';
 
 const ACTIONS = [
   { value: 'buy', label: 'Buy' },
@@ -15,7 +17,6 @@ const ACTIONS = [
   { value: 'quote', label: 'Request a quote' },
 ];
 
-const FEELS = ['Professional', 'Bold', 'Warm', 'Luxury', 'Playful', 'Minimal', 'Educational', 'Custom'];
 
 const fieldClass =
   'w-full rounded-lg border border-line bg-surface px-3 py-2 text-base text-ink placeholder:text-ink-faint focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25';
@@ -96,32 +97,15 @@ export default async function BrandBuilderPage() {
           <div>
             <Label>Upload anything you already have <span className="font-normal text-ink-faint">(optional)</span></Label>
             <div className="grid gap-3 sm:grid-cols-2">
-              <label className="flex flex-col gap-1 text-[12px] text-ink-soft">
-                Logo
-                <input type="file" name="logo" accept="image/*" className="text-[12px]" />
-              </label>
-              <label className="flex flex-col gap-1 text-[12px] text-ink-soft">
-                Photos / product images
-                <input type="file" name="images" accept="image/*" multiple className="text-[12px]" />
-              </label>
+              <ImageUpload name="logo" label="Logo" maxBytes={800_000} />
+              <ImageUpload name="images" label="Photos / product images" multiple maxBytes={1_200_000} />
             </div>
-            <p className="mt-1 text-[11px] text-ink-faint">Images help Morrowlane match your look. Small files work best.</p>
+            <p className="mt-1 text-[11px] text-ink-faint">
+              Images help Morrowlane match your look. Large photos are resized here, so anything from your phone works.
+            </p>
           </div>
 
-          <fieldset>
-            <legend className="mb-1 block text-[13px] font-medium text-ink-soft">Choose a general brand feel</legend>
-            <div className="flex flex-wrap gap-2 pt-1">
-              {FEELS.map((feel, index) => (
-                <label
-                  key={feel}
-                  className="inline-flex min-h-11 cursor-pointer items-center rounded-full border border-line px-4 text-[13px] text-ink-soft transition hover:border-accent/50 has-[:checked]:border-accent has-[:checked]:bg-accent-soft has-[:checked]:text-accent-strong has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent-strong"
-                >
-                  <input type="radio" name="brandFeel" value={feel.toLowerCase()} defaultChecked={index === 0} className="sr-only" />
-                  {feel}
-                </label>
-              ))}
-            </div>
-          </fieldset>
+          <BrandFeel />
 
           <div className="flex flex-wrap items-center gap-3 pt-1">
             <SubmitButton size="lg" pendingLabel="Building your profile…" hint="Reading your answers and writing your brand profile.">

@@ -5,7 +5,7 @@ import { Badge, Button, Card, CardBody, CardHeader, Stat } from '@morrowlane/ui'
 import { formatProfile } from '@morrowlane/shared';
 import {
   approveContent,
-  deleteContentItem,
+  deleteContentAndReturn,
   duplicateContent,
   generateVariants,
   renderMedia,
@@ -13,8 +13,9 @@ import {
   updateContentBody,
 } from '@/server/actions';
 import { requireBrand } from '@/server/session';
-import { formatDateTime, formatNumber, STATUS_TONES, statusLabel } from '@/lib/format';
+import { formatDateTime, formatNumber, STATUS_TONES, statusLabel, channelLabel } from '@/lib/format';
 import { LibraryItem } from '../item';
+import { LocalTime } from '@/components/local-time';
 
 /**
  * One piece of content, end to end: the editable item itself, and the spec's
@@ -99,7 +100,7 @@ export default async function ContentDetailPage({
               <span key={post.id} className="flex flex-wrap items-center gap-2">
                 <Badge tone={STATUS_TONES[post.status]}>{statusLabel(post.status)}</Badge>
                 <span className="text-ink-soft">
-                  {formatDateTime(post.scheduledFor)} · {post.channel}
+                  <LocalTime iso={post.scheduledFor} /> · {channelLabel(post.channel)}
                 </span>
                 {post.externalUrl ? (
                   <a href={post.externalUrl} target="_blank" rel="noreferrer" className="text-accent-strong hover:underline">
@@ -144,7 +145,7 @@ export default async function ContentDetailPage({
       <LibraryItem
         item={item}
         approve={approveContent.bind(null, brandId, item.id)}
-        remove={deleteContentItem.bind(null, brandId, item.id)}
+        remove={deleteContentAndReturn.bind(null, brandId, item.id)}
         saveBody={updateContentBody.bind(null, brandId, item.id)}
         schedule={scheduleContentItem.bind(null, brandId, item.id)}
         defaultOpen

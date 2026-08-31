@@ -2,6 +2,7 @@ import { Badge, Button, Card, CardBody, CardHeader, Input, PageHeader, Select } 
 import { inviteTeammate, removeTeammate } from '@/server/actions';
 import { requireSession } from '@/server/session';
 import { TopBarPage } from '@/components/topbar';
+import { ConfirmButton } from '@/components/confirm-button';
 
 export default async function SettingsPage() {
   const session = await requireSession();
@@ -42,9 +43,9 @@ export default async function SettingsPage() {
                 </div>
                 {member.role !== 'owner' ? (
                   <form action={removeTeammate.bind(null, member.id)}>
-                    <Button type="submit" variant="ghost" size="sm">
+                    <ConfirmButton confirmLabel="Remove them" explanation="They lose access to this workspace.">
                       Remove
-                    </Button>
+                    </ConfirmButton>
                   </form>
                 ) : (
                   <Badge tone="neutral">owner</Badge>

@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { useState, useTransition } from 'react';
 import type { ContentItem } from '@morrowlane/shared';
 import { Badge, Button, Card, CardBody, Textarea } from '@morrowlane/ui';
-import { STATUS_TONES, statusLabel } from '@/lib/format';
+import { STATUS_TONES, statusLabel, channelLabel } from '@/lib/format';
+import { localInputToIso } from '@/lib/local-datetime';
 
 export function LibraryItem({
   item,
@@ -62,7 +63,7 @@ export function LibraryItem({
             </div>
           </div>
           <p className="mt-1 text-[12px] text-ink-faint">
-            {statusLabel(item.format)} · {item.channel}
+            {statusLabel(item.format)} · {channelLabel(item.channel)}
             {item.lineage.sourceUrl ? ` · from ${item.lineage.sourceUrl}` : ''}
             {item.campaignId ? ' · campaign' : ''}
           </p>
@@ -145,7 +146,10 @@ export function LibraryItem({
                       size="sm"
                       variant="secondary"
                       disabled={pending || !when}
-                      onClick={() => act(() => schedule(new Date(`${when}:00Z`).toISOString()))}
+                      onClick={() => {
+                        const iso = localInputToIso(when);
+                        if (iso) act(() => schedule(iso));
+                      }}
                     >
                       Schedule
                     </Button>
