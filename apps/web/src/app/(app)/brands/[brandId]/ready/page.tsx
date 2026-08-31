@@ -1,9 +1,10 @@
 import Link from 'next/link';
 import { addDays, nowIso } from '@morrowlane/shared';
-import { Alert, Button, Card, CardBody, Stat } from '@morrowlane/ui';
+import { Alert, Button, Card, CardBody, ProgressBar, Stat } from '@morrowlane/ui';
 import { requireBrand } from '@/server/session';
 import { channelLabel } from '@/lib/format';
 import { LocalTime } from '@/components/local-time';
+import { AutoRefresh } from '@/components/auto-refresh';
 
 /**
  * The golden-path completion screen — the "your month is ready" moment. It summarises the
@@ -74,7 +75,33 @@ export default async function ReadyPage({
     (await runtime.store.queryContent({ brandId, limit: 500 })).items.map((item) => [item.id, item.title]),
   );
 
-  // Nothing was scheduled: congratulating the user here would simply be untrue.
+  // Nothing scheduled *yet* is not the same as nothing scheduled. With an external
+  // worker the job is still running when this page first renders, and telling the user
+  // their month failed while it is being written is the worst possible moment to be
+  // wrong. Show the work instead.
+  if (pieces === 0) {
+    const running = (await runtime.store.listJobs(brandId, { status: ['running', 'queued'], limit: 1 }))[0];
+    if (running) {
+      return (
+        <div className="mx-auto max-w-lg pt-10">
+          <Card>
+            <CardBody className="py-8 text-center">
+              <h1 className="text-xl font-semibold tracking-tight text-ink">Morrowlane is writing your month</h1>
+              <p className="mt-1 text-[13px] text-ink-soft">
+                Planning the run, writing each post, and placing them on your calendar.
+              </p>
+              <div className="mx-auto mt-5 max-w-sm">
+                <ProgressBar value={running.progress || 0.05} label={running.progressLabel ?? 'Starting'} />
+              </div>
+              <AutoRefresh intervalMs={3000} label="Writing your content…" />
+            </CardBody>
+          </Card>
+        </div>
+      );
+    }
+  }
+
+  // Genuinely nothing: congratulating the user here would simply be untrue.
   if (pieces === 0) {
     return (
       <div className="mx-auto max-w-lg pt-10">

@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { after } from 'next/server';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { parseStudioIntent } from '@morrowlane/content-engine';
@@ -52,6 +53,36 @@ async function enqueueAndMaybeRun(
   const claimed = await session.runtime.store.claimJob('inline');
   if (!claimed || claimed.id !== job.id) return job;
   return runJob(claimed, session.runtime);
+}
+
+/**
+ * Enqueue, hand the page back immediately, and run the work after the response.
+ *
+ * Running a minute-long crawl inside the action meant the user watched a disabled
+ * button with no progress, while the brand page's real progress screen — job labels, a
+ * bar, a pause control — could never render, because the redirect only happened once
+ * the work was already done. On a serverless deployment it also courted the function
+ * timeout. Used for flows whose destination can show progress and poll.
+ */
+async function enqueueAndRunAfterResponse(
+  input: { organizationId: string; brandId: string | null; kind: Parameters<Awaited<ReturnType<typeof requireSession>>['runtime']['store']['enqueueJob']>[0]['kind']; payload: Record<string, unknown> },
+) {
+  const session = await requireSession();
+  const job = await session.runtime.store.enqueueJob(input);
+  if (process.env['MORROWLANE_WORKER'] === 'external') return job;
+
+  after(async () => {
+    try {
+      const claimed = await session.runtime.store.claimJob('inline');
+      if (!claimed || claimed.id !== job.id) return;
+      await runJob(claimed, session.runtime);
+    } catch (error) {
+      // The job record carries its own failure state; the page reads it and offers
+      // the ways out. Never let a deferred failure take down the response.
+      log.error('deferred job failed', { jobId: job.id, error: String(error) });
+    }
+  });
+  return job;
 }
 
 /* ------------------------------- Auth ---------------------------------- */
@@ -112,7 +143,7 @@ export async function startBrandBuilder(formData: FormData) {
     websiteUrl: '',
   });
 
-  await enqueueAndMaybeRun({
+  await enqueueAndRunAfterResponse({
     organizationId: session.organizationId,
     brandId: brand.id,
     kind: 'build_brand_profile',
@@ -148,7 +179,7 @@ export async function addBrand(formData: FormData) {
     websiteUrl,
   });
 
-  await enqueueAndMaybeRun({
+  await enqueueAndRunAfterResponse({
     organizationId: session.organizationId,
     brandId: brand.id,
     kind: 'crawl_site',
