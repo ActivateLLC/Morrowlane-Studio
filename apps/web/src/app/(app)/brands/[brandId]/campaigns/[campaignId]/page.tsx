@@ -4,7 +4,7 @@ import { performanceByContent, summariseFunnel } from '@morrowlane/analytics';
 import { addDays } from '@morrowlane/shared';
 import { Badge, Button, Card, CardBody, CardHeader, Stat, cn } from '@morrowlane/ui';
 import { getCampaignOutcome } from '@morrowlane/shared';
-import { approvePlan, approveSelected, pauseCampaign, removeSelected, updateCampaignStatus } from '@/server/actions';
+import { approvePlan, approveSelected, pauseCampaign, removeSelected, updateCampaignStatus, updateContentBody } from '@/server/actions';
 import { CommitBar } from './commit-bar';
 import { ReviewList } from './review-list';
 import { requireBrand } from '@/server/session';
@@ -67,7 +67,7 @@ export default async function CampaignDetailPage({
             <h1 className="text-xl font-semibold tracking-tight text-ink">{campaign.name}</h1>
             <p className="mt-1 text-[13px] text-ink-soft">
               {campaign.goal} · {formatDay(campaign.startDate)} – {formatDay(addDays(campaign.startDate, campaign.durationDays - 1))} ·{' '}
-              {campaign.channels.join(', ')}
+              {campaign.channels.map(channelLabel).join(', ')}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -107,7 +107,7 @@ export default async function CampaignDetailPage({
               <h2 className="text-sm font-semibold text-ink">One plan to review</h2>
               <p className="mt-0.5 text-[13px] text-ink-soft">
                 {items.length} {items.length === 1 ? 'piece' : 'pieces'} across {campaign.phases.length} phases, adapted
-                for {campaign.channels.join(', ')}. Approve to schedule the whole run onto your calendar.
+                for {campaign.channels.map(channelLabel).join(', ')}. Approve to schedule the whole run onto your calendar.
                 {blockedCount > 0 ? (
                   <span className="text-caution">
                     {' '}
@@ -184,6 +184,7 @@ export default async function CampaignDetailPage({
           })}
           approveSelected={approveSelected.bind(null, brandId)}
           removeSelected={removeSelected.bind(null, brandId)}
+          saveBody={updateContentBody.bind(null, brandId)}
         />
       ) : (
       <section className="space-y-4">

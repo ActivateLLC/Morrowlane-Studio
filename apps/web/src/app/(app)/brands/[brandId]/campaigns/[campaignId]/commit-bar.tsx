@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { Button } from '@morrowlane/ui';
+import { channelLabel } from '@/lib/format';
 
 /** Submit that reports its own progress, so a long schedule never looks stalled. */
 function ScheduleButton() {
@@ -49,7 +50,7 @@ export function CommitBar({
       <p className="text-sm font-semibold text-ink">Schedule this campaign?</p>
       <ul className="mt-2 space-y-1 text-[13px] text-ink-soft">
         <li>
-          <strong className="font-medium text-ink">{approvableCount}</strong> posts across {channels.join(', ')}
+          <strong className="font-medium text-ink">{approvableCount}</strong> posts across {channels.map(channelLabel).join(', ')}
         </li>
         {firstPostAt ? (
           <li>

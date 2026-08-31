@@ -203,8 +203,8 @@ export default async function BrainPage({ params }: { params: Promise<{ brandId:
                   {brand.websiteUrl ? 'Sample sentences from the site' : 'What you told Morrowlane'}
                 </p>
                 <ul className="space-y-1">
-                  {brain.voice.sampleSentences.map((sentence) => (
-                    <li key={sentence} className="rounded bg-surface-sunken px-3 py-1.5 text-[12px] italic text-ink-soft">
+                  {brain.voice.sampleSentences.map((sentence, index) => (
+                    <li key={`${sentence}-${index}`} className="rounded bg-surface-sunken px-3 py-1.5 text-[12px] italic text-ink-soft">
                       “{sentence}”
                     </li>
                   ))}
@@ -293,7 +293,7 @@ export default async function BrainPage({ params }: { params: Promise<{ brandId:
                 <Input id="product-price" name="priceHint" placeholder="From £95" />
               </div>
               <SubmitButton size="sm" variant="secondary" pendingLabel="Adding…">
-                Add it
+                Add product
               </SubmitButton>
             </form>
           </details>
@@ -346,8 +346,8 @@ export default async function BrainPage({ params }: { params: Promise<{ brandId:
               <div>
                 <p className="mb-1.5 text-[13px] font-medium text-ink-soft">Regulatory notes</p>
                 <ul className="space-y-1 text-[12px] text-ink-soft">
-                  {brain.rules.regulatoryNotes.map((note) => (
-                    <li key={note} className="rounded bg-caution-soft px-3 py-1.5 text-caution">
+                  {brain.rules.regulatoryNotes.map((note, index) => (
+                    <li key={`${note}-${index}`} className="rounded bg-caution-soft px-3 py-1.5 text-caution">
                       {note}
                     </li>
                   ))}
@@ -391,7 +391,7 @@ export default async function BrainPage({ params }: { params: Promise<{ brandId:
                   <Input name="question" placeholder="How quickly can you come out?" aria-label="Question" required />
                   <Textarea name="answer" rows={2} placeholder="Your answer" aria-label="Answer" required />
                   <SubmitButton size="sm" variant="secondary" pendingLabel="Adding…">
-                    Add it
+                    Add question
                   </SubmitButton>
                 </form>
               </details>
@@ -424,7 +424,7 @@ export default async function BrainPage({ params }: { params: Promise<{ brandId:
                   <Textarea name="quote" rows={2} placeholder="What they said" aria-label="Quote" required />
                   <Input name="attribution" placeholder="Who said it (optional)" aria-label="Attribution" />
                   <SubmitButton size="sm" variant="secondary" pendingLabel="Adding…">
-                    Add it
+                    Add quote
                   </SubmitButton>
                 </form>
               </details>
@@ -439,8 +439,8 @@ export default async function BrainPage({ params }: { params: Promise<{ brandId:
             />
             {brain.visuals.colors.length > 0 ? (
               <div className="flex flex-wrap gap-2">
-                {brain.visuals.colors.map((color) => (
-                  <span key={color} className="flex items-center gap-1.5 text-[12px] text-ink-faint">
+                {brain.visuals.colors.map((color, index) => (
+                  <span key={`${color}-${index}`} className="flex items-center gap-1.5 text-[12px] text-ink-faint">
                     <span className="h-5 w-5 rounded border border-line" style={{ backgroundColor: color }} />
                     {color}
                   </span>
@@ -465,8 +465,8 @@ export default async function BrainPage({ params }: { params: Promise<{ brandId:
               <div>
                 <p className="mb-1.5 text-[13px] font-medium text-ink-soft">Terminology</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {brain.terminology.slice(0, 10).map((term) => (
-                    <Badge key={term} tone="neutral">
+                  {brain.terminology.slice(0, 10).map((term, index) => (
+                    <Badge key={`${term}-${index}`} tone="neutral">
                       {term}
                     </Badge>
                   ))}

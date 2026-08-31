@@ -754,6 +754,8 @@ export async function updateContentBody(brandId: string, contentId: string, body
     status: violations.some((v) => v.severity === 'error') ? 'needs_review' : item.status,
   });
   revalidatePath(`/brands/${brandId}/library`);
+  // The review page edits in place too, and it is the surface where a rule fix matters most.
+  if (item.campaignId) revalidatePath(`/brands/${brandId}/campaigns/${item.campaignId}`);
 }
 
 export async function scheduleContentItem(brandId: string, contentId: string, scheduledFor: string) {

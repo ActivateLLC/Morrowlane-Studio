@@ -1,9 +1,11 @@
 import { CAMPAIGN_OUTCOMES, SOCIAL_CHANNELS } from '@morrowlane/shared';
-import { Button, Card, CardBody, Label, PageHeader, Select } from '@morrowlane/ui';
+import { Alert, Card, CardBody, Input, Label, PageHeader, Select } from '@morrowlane/ui';
 import { startGuidedCampaign } from '@/server/actions';
 import { requireBrand } from '@/server/session';
 import { SubmitButton } from '@/components/submit-button';
 import { SetupNeeded } from '@/components/setup-needed';
+import { channelLabel } from '@/lib/format';
+import { SizePreview } from './size-preview';
 
 /**
  * The guided flow's front door (step 5). Instead of a blank goal box, the user picks the
@@ -31,7 +33,14 @@ export default async function PlanPage({ params }: { params: Promise<{ brandId: 
         description="Pick the outcome you're after. Morrowlane plans the whole run, writes every post, and gives you one plan to approve."
       />
 
-      <form action={startGuidedCampaign.bind(null, brandId)} className="space-y-6">
+      {connectedChannels.length === 0 ? (
+        <Alert tone="caution" title="No accounts are connected yet">
+          Morrowlane will still plan and write everything. The posts sit on your calendar and publish once you
+          connect an account.
+        </Alert>
+      ) : null}
+
+      <form id="plan-form" action={startGuidedCampaign.bind(null, brandId)} className="space-y-6">
         <fieldset className="space-y-3">
           <legend className="mb-1 block text-[13px] font-medium text-ink-soft">What should this achieve?</legend>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -90,13 +99,29 @@ export default async function PlanPage({ params }: { params: Promise<{ brandId: 
                       value={channel}
                       defaultChecked={defaultChannels.includes(channel)}
                     />
-                    {channel}
+                    {channelLabel(channel)}
                   </label>
                 ))}
               </div>
             </div>
           </CardBody>
         </Card>
+
+        <Card>
+          <CardBody>
+            <Label htmlFor="goal">Anything specific this should push? (optional)</Label>
+            <Input
+              id="goal"
+              name="goal"
+              placeholder="Fill the October calendar, launch the new van service…"
+            />
+            <p className="mt-1 text-[11px] text-ink-faint">
+              Leave it blank and Morrowlane writes the goal from the outcome you picked.
+            </p>
+          </CardBody>
+        </Card>
+
+        <SizePreview formId="plan-form" />
 
         <div className="flex flex-wrap items-center gap-3">
           <SubmitButton size="lg" pendingLabel="Planning your campaign…" hint="Writing every post in the run. This can take a minute.">

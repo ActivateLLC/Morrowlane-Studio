@@ -4,6 +4,7 @@ import { fillMonthAction } from '@/server/actions';
 import { requireBrand } from '@/server/session';
 import { SetupNeeded } from '@/components/setup-needed';
 import { SubmitButton } from '@/components/submit-button';
+import { channelLabel } from '@/lib/format';
 
 /**
  * The confirmation in front of Fill my month. One click here used to generate and
@@ -33,9 +34,13 @@ export default async function FillMonthPage({ params }: { params: Promise<{ bran
               <strong className="font-medium text-ink">30 days</strong> of content, spread out rather than bunched.
             </li>
             <li>
-              Published to{' '}
+              {/* "Published to" then contradicted itself two lines later; these are
+                  scheduled, and the caution below explains when they actually go out. */}
+              Scheduled to{' '}
               <strong className="font-medium text-ink">
-                {channels.length > 0 ? channels.join(', ') : 'Instagram (connect accounts for more)'}
+                {channels.length > 0
+                  ? channels.map(channelLabel).join(', ')
+                  : 'Instagram (connect accounts for more)'}
               </strong>
               .
             </li>

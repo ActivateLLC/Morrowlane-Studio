@@ -3,7 +3,7 @@ import { Badge, Button, Card, CardBody, CardHeader, Input, Label, PageHeader, Se
 import Link from 'next/link';
 import { createCampaign } from '@/server/actions';
 import { requireBrand } from '@/server/session';
-import { formatDay } from '@/lib/format';
+import { formatDay, channelLabel } from '@/lib/format';
 import { SetupNeeded } from '@/components/setup-needed';
 
 export default async function CampaignsPage({ params }: { params: Promise<{ brandId: string }> }) {
@@ -82,7 +82,7 @@ export default async function CampaignsPage({ params }: { params: Promise<{ bran
                 <h3 className="text-sm font-semibold text-ink">{campaign.name}</h3>
               </Link>
               <p className="text-[12px] text-ink-faint">
-                {campaign.durationDays} days from {formatDay(campaign.startDate)} · {campaign.channels.join(', ')}
+                {campaign.durationDays} days from {formatDay(campaign.startDate)} · {campaign.channels.map(channelLabel).join(', ')}
               </p>
             </div>
             <Badge tone={campaign.status === 'active' ? 'positive' : 'neutral'}>{campaign.status}</Badge>

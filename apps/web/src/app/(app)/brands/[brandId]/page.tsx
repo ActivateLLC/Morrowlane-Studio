@@ -56,9 +56,17 @@ export default async function BrandTodayPage({ params }: { params: Promise<{ bra
               </>
             ) : (
               <>
-                <p className="font-medium text-ink">Morrowlane is reading {brand.websiteUrl}</p>
+                {/* The Brand Builder path arrives here with no website. Promising to read
+                    a sitemap to someone who just said they have no site is nonsense. */}
+                <p className="font-medium text-ink">
+                  {brand.websiteUrl
+                    ? `Morrowlane is reading ${brand.websiteUrl}`
+                    : 'Morrowlane is building your brand profile'}
+                </p>
                 <p className="mt-1 text-sm text-ink-soft">
-                  Discovering the sitemap, reading every page that matters, and building the brand profile.
+                  {brand.websiteUrl
+                    ? 'Discovering the sitemap, reading every page that matters, and building the brand profile.'
+                    : 'Turning your answers into the voice, products and rules your content is written from.'}
                 </p>
                 <div className="mx-auto mt-5 max-w-sm">
                   <ProgressBar value={running?.progress ?? 0.05} label={running?.progressLabel ?? 'Starting'} />
@@ -150,8 +158,8 @@ export default async function BrandTodayPage({ params }: { params: Promise<{ bra
                       <p className="text-sm font-medium text-ink">{opportunity.headline}</p>
                       <p className="mt-0.5 text-[13px] text-ink-soft">{opportunity.reasoning}</p>
                       <ul className="mt-2 space-y-0.5 break-words text-[12px] text-ink-faint">
-                        {opportunity.evidence.slice(0, 3).map((line) => (
-                          <li key={line}>• {line}</li>
+                        {opportunity.evidence.slice(0, 3).map((line, index) => (
+                          <li key={`${line}-${index}`}>• {line}</li>
                         ))}
                       </ul>
                     </div>
