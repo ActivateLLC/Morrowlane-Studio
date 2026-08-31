@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useMemo, useState, useTransition } from 'react';
 import { Badge, Button } from '@morrowlane/ui';
+import { channelLabel } from '@/lib/format';
 
 export interface ReviewItem {
   id: string;
@@ -137,7 +138,7 @@ export function ReviewList({
                           <p className="text-[13px] font-medium text-ink">{item.title}</p>
                           <div className="flex shrink-0 items-center gap-1.5">
                             {item.blocked ? <Badge tone="critical">breaks a rule</Badge> : null}
-                            <Badge tone="neutral">{item.channel}</Badge>
+                            <Badge tone="neutral">{channelLabel(item.channel)}</Badge>
                           </div>
                         </div>
                         {/* The words that will actually be published. */}

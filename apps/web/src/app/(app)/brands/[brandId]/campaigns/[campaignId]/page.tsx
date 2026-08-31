@@ -8,7 +8,8 @@ import { approvePlan, approveSelected, pauseCampaign, removeSelected, updateCamp
 import { CommitBar } from './commit-bar';
 import { ReviewList } from './review-list';
 import { requireBrand } from '@/server/session';
-import { formatDay, formatDateTime, formatNumber, STATUS_TONES, statusLabel } from '@/lib/format';
+import { formatDay, formatDateTime, formatNumber, STATUS_TONES, statusLabel, channelLabel } from '@/lib/format';
+import { LocalTime } from '@/components/local-time';
 
 /** Alternating tints so adjacent phases read apart on the timeline bar. */
 const PHASE_TINTS = ['bg-accent', 'bg-accent/70', 'bg-accent/50', 'bg-accent/70', 'bg-accent/90'];
@@ -212,7 +213,7 @@ export default async function CampaignDetailPage({
                         <div className="min-w-0">
                           <p className="truncate text-[13px] font-medium text-ink">{item.title}</p>
                           <p className="text-[12px] text-ink-faint">
-                            {statusLabel(item.format)} · {item.channel}
+                            {statusLabel(item.format)} · {channelLabel(item.channel)}
                           </p>
                         </div>
                         <Badge tone={STATUS_TONES[item.status]}>{statusLabel(item.status)}</Badge>
@@ -240,7 +241,7 @@ export default async function CampaignDetailPage({
                   <div className="min-w-0">
                     <p className="truncate text-[13px] font-medium text-ink">{item?.title ?? post.contentId}</p>
                     <p className="text-[12px] text-ink-faint">
-                      {formatDateTime(post.scheduledFor)} · {post.channel}
+                      <LocalTime iso={post.scheduledFor} /> · {channelLabel(post.channel)}
                     </p>
                   </div>
                   <Badge tone={STATUS_TONES[post.status]}>{statusLabel(post.status)}</Badge>

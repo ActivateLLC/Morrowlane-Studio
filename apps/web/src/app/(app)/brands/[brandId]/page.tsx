@@ -4,9 +4,11 @@ import { addDays, nowIso } from '@morrowlane/shared';
 import { Badge, Button, Card, CardBody, CardHeader, Input, ProgressBar, Stat } from '@morrowlane/ui';
 import { actOnOpportunity, deleteBrandAction, retryWithNewAddress } from '@/server/actions';
 import { requireBrand } from '@/server/session';
-import { formatDateTime, formatNumber, STATUS_TONES, statusLabel } from '@/lib/format';
+import { formatDateTime, formatNumber, STATUS_TONES, statusLabel, channelLabel } from '@/lib/format';
 import { AutoRefresh } from '@/components/auto-refresh';
 import { SubmitButton } from '@/components/submit-button';
+import { ConfirmButton } from '@/components/confirm-button';
+import { LocalTime } from '@/components/local-time';
 
 /**
  * The brand home. It opens with creation — the three doors from the spec — and only
@@ -43,9 +45,12 @@ export default async function BrandTodayPage({ params }: { params: Promise<{ bra
                     Answer a few questions instead →
                   </Link>
                   <form action={deleteBrandAction.bind(null, brandId)}>
-                    <Button type="submit" variant="ghost" size="sm">
+                    <ConfirmButton
+                      confirmLabel="Delete for good"
+                      explanation="This removes the brand and everything in it."
+                    >
                       Delete this brand
-                    </Button>
+                    </ConfirmButton>
                   </form>
                 </div>
               </>
@@ -183,7 +188,7 @@ export default async function BrandTodayPage({ params }: { params: Promise<{ bra
                       <div className="min-w-0">
                         <p className="truncate text-[13px] font-medium text-ink">{item?.title ?? post.contentId}</p>
                         <p className="text-[12px] text-ink-faint">
-                          {formatDateTime(post.scheduledFor)} · {post.channel}
+                          <LocalTime iso={post.scheduledFor} /> · {channelLabel(post.channel)}
                         </p>
                       </div>
                       <Badge tone={STATUS_TONES[post.status]}>{statusLabel(post.status)}</Badge>
@@ -211,7 +216,7 @@ export default async function BrandTodayPage({ params }: { params: Promise<{ bra
                   <div key={item.id} className="flex items-center justify-between gap-3 px-5 py-3">
                     <div className="min-w-0">
                       <p className="truncate text-[13px] font-medium text-ink">{item.title}</p>
-                      <p className="text-[12px] text-ink-faint">{statusLabel(item.format)} · {item.channel}</p>
+                      <p className="text-[12px] text-ink-faint">{statusLabel(item.format)} · {channelLabel(item.channel)}</p>
                     </div>
                     <Badge tone={STATUS_TONES[item.status]}>{statusLabel(item.status)}</Badge>
                   </div>

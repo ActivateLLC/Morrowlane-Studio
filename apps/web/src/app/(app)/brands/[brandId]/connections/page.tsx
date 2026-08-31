@@ -3,7 +3,8 @@ import { Alert, Badge, Button, Card, CardBody, PageHeader } from '@morrowlane/ui
 import { connectBluesky, connectDemoAccount, disconnectAccount } from '@/server/actions';
 import { BlueskyConnectForm } from './bluesky-form';
 import { requireBrand } from '@/server/session';
-import { formatDateTime } from '@/lib/format';
+import { formatDateTime, channelLabel } from '@/lib/format';
+import { ConfirmButton } from '@/components/confirm-button';
 
 /** Milestone 7: centralized OAuth connections behind the provider abstraction. */
 export default async function ConnectionsPage({
@@ -53,16 +54,19 @@ export default async function ConnectionsPage({
                 <div>
                   <p className="text-[13px] font-medium text-ink">{connection.displayName}</p>
                   <p className="text-[12px] text-ink-faint">
-                    {connection.channel}
+                    {channelLabel(connection.channel)}
                     {connection.lastValidatedAt ? ` · validated ${formatDateTime(connection.lastValidatedAt)}` : ''}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge tone={connection.status === 'active' ? 'positive' : 'critical'}>{connection.status}</Badge>
                   <form action={disconnectAccount.bind(null, brandId, connection.id)}>
-                    <Button type="submit" variant="ghost" size="sm">
+                    <ConfirmButton
+                      confirmLabel="Disconnect"
+                      explanation="Scheduled posts to this account will stop publishing."
+                    >
                       Disconnect
-                    </Button>
+                    </ConfirmButton>
                   </form>
                 </div>
               </div>

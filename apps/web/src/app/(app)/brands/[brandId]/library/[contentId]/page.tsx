@@ -13,8 +13,9 @@ import {
   updateContentBody,
 } from '@/server/actions';
 import { requireBrand } from '@/server/session';
-import { formatDateTime, formatNumber, STATUS_TONES, statusLabel } from '@/lib/format';
+import { formatDateTime, formatNumber, STATUS_TONES, statusLabel, channelLabel } from '@/lib/format';
 import { LibraryItem } from '../item';
+import { LocalTime } from '@/components/local-time';
 
 /**
  * One piece of content, end to end: the editable item itself, and the spec's
@@ -99,7 +100,7 @@ export default async function ContentDetailPage({
               <span key={post.id} className="flex flex-wrap items-center gap-2">
                 <Badge tone={STATUS_TONES[post.status]}>{statusLabel(post.status)}</Badge>
                 <span className="text-ink-soft">
-                  {formatDateTime(post.scheduledFor)} · {post.channel}
+                  <LocalTime iso={post.scheduledFor} /> · {channelLabel(post.channel)}
                 </span>
                 {post.externalUrl ? (
                   <a href={post.externalUrl} target="_blank" rel="noreferrer" className="text-accent-strong hover:underline">

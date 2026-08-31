@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { parseStudioIntent } from '@morrowlane/content-engine';
 import { applyInsights } from '@morrowlane/analytics';
+import { scoreCompleteness } from '@morrowlane/brand-engine';
 import { runJob } from '@morrowlane/agents';
 import {
   ValidationError,
@@ -189,9 +190,53 @@ export async function reanalyzeBrand(brandId: string) {
   revalidatePath(`/brands/${brandId}`);
 }
 
+/**
+ * Only these paths are editable. The path arrives from the client, so without an
+ * allowlist a crafted call could rewrite `lockedFields`, `version` or `brandId` —
+ * the bookkeeping that makes the lock invariant meaningful in the first place.
+ * Product entries are matched by index (`products.0.description`).
+ */
+const EDITABLE_BRAIN_PATHS = new Set([
+  'identity.companyName',
+  'identity.oneLiner',
+  'identity.description',
+  'identity.category',
+  'identity.audience',
+  'identity.differentiators',
+  'identity.industries',
+  'identity.locations',
+  'voice.traits',
+  'voice.personSummary',
+  'voice.avoid',
+  'voice.readingLevel',
+  'voice.sampleSentences',
+  'offers',
+  'terminology',
+  'socialLinks',
+  'notes',
+  'rules.approvedTerminology',
+  'rules.prohibitedTerminology',
+  'rules.approvedClaims',
+  'rules.prohibitedClaims',
+  'rules.regulatoryNotes',
+  'rules.preferredCtas',
+  'rules.visualGuidelines',
+  'visuals.colors',
+]);
+
+const EDITABLE_PRODUCT_FIELDS = new Set(['name', 'description', 'benefits', 'priceHint', 'audience', 'ctas']);
+
+function assertEditableBrainPath(path: string): void {
+  if (EDITABLE_BRAIN_PATHS.has(path)) return;
+  const product = /^products\.(\d+)\.([a-zA-Z]+)$/.exec(path);
+  if (product && EDITABLE_PRODUCT_FIELDS.has(product[2]!)) return;
+  throw new ValidationError('That field cannot be edited.');
+}
+
 /** Editing a Brand Brain field locks it, so the next analysis cannot overwrite it. */
 export async function updateBrainField(brandId: string, path: string, value: string) {
   const { runtime } = await requireBrandWrite(brandId);
+  assertEditableBrainPath(path);
   const brain = await runtime.store.getBrain(brandId);
   if (!brain) throw new ValidationError('This brand has not been analysed yet.');
 
@@ -213,8 +258,136 @@ export async function updateBrainField(brandId: string, path: string, value: str
     : value;
 
   next.lockedFields = [...new Set([...brain.lockedFields, path])];
+  // Recompute, or the completeness meter never moves when a user fills a gap —
+  // which teaches them the number is decoration.
+  next.completeness = scoreCompleteness(next);
   await runtime.store.saveBrain(next);
   revalidatePath(`/brands/${brandId}`);
+}
+
+/** Releases a field back to re-analysis. Without this, one edit forfeits enrichment forever. */
+export async function unlockBrainField(brandId: string, path: string) {
+  const { runtime } = await requireBrandWrite(brandId);
+  const brain = await runtime.store.getBrain(brandId);
+  if (!brain) throw new ValidationError('This brand has not been analysed yet.');
+
+  const next = structuredClone(brain);
+  next.lockedFields = brain.lockedFields.filter((locked) => locked !== path);
+  await runtime.store.saveBrain(next);
+  revalidatePath(`/brands/${brandId}/brain`);
+}
+
+/** Adds a question customers actually ask. Crawls miss these; owners never do. */
+export async function addBrainFaq(brandId: string, formData: FormData) {
+  const { runtime } = await requireBrandWrite(brandId);
+  const question = String(formData.get('question') ?? '').trim();
+  const answer = String(formData.get('answer') ?? '').trim();
+  if (!question || !answer) throw new ValidationError('Add both the question and your answer.');
+
+  const brain = await runtime.store.getBrain(brandId);
+  if (!brain) throw new ValidationError('This brand has not been analysed yet.');
+
+  const next = structuredClone(brain);
+  next.faqs = [...next.faqs, { question, answer }];
+  next.lockedFields = [...new Set([...brain.lockedFields, 'faqs'])];
+  next.completeness = scoreCompleteness(next);
+  await runtime.store.saveBrain(next);
+  revalidatePath(`/brands/${brandId}/brain`);
+}
+
+export async function removeBrainFaq(brandId: string, index: number) {
+  const { runtime } = await requireBrandWrite(brandId);
+  const brain = await runtime.store.getBrain(brandId);
+  if (!brain) throw new ValidationError('This brand has not been analysed yet.');
+
+  const next = structuredClone(brain);
+  next.faqs = next.faqs.filter((_, position) => position !== index);
+  next.lockedFields = [...new Set([...brain.lockedFields, 'faqs'])];
+  next.completeness = scoreCompleteness(next);
+  await runtime.store.saveBrain(next);
+  revalidatePath(`/brands/${brandId}/brain`);
+}
+
+/** A real customer quote. Proof outperforms claims and it is the user's to give. */
+export async function addBrainTestimonial(brandId: string, formData: FormData) {
+  const { runtime } = await requireBrandWrite(brandId);
+  const quote = String(formData.get('quote') ?? '').trim();
+  const attribution = String(formData.get('attribution') ?? '').trim();
+  if (!quote) throw new ValidationError('Add the quote itself.');
+
+  const brain = await runtime.store.getBrain(brandId);
+  if (!brain) throw new ValidationError('This brand has not been analysed yet.');
+
+  const next = structuredClone(brain);
+  next.testimonials = [...next.testimonials, { quote, attribution: attribution || null }];
+  next.lockedFields = [...new Set([...brain.lockedFields, 'testimonials'])];
+  next.completeness = scoreCompleteness(next);
+  await runtime.store.saveBrain(next);
+  revalidatePath(`/brands/${brandId}/brain`);
+}
+
+export async function removeBrainTestimonial(brandId: string, index: number) {
+  const { runtime } = await requireBrandWrite(brandId);
+  const brain = await runtime.store.getBrain(brandId);
+  if (!brain) throw new ValidationError('This brand has not been analysed yet.');
+
+  const next = structuredClone(brain);
+  next.testimonials = next.testimonials.filter((_, position) => position !== index);
+  next.lockedFields = [...new Set([...brain.lockedFields, 'testimonials'])];
+  next.completeness = scoreCompleteness(next);
+  await runtime.store.saveBrain(next);
+  revalidatePath(`/brands/${brandId}/brain`);
+}
+
+/** A product the crawl missed — the most common gap on a thin or JS-rendered site. */
+export async function addBrainProduct(brandId: string, formData: FormData) {
+  const { runtime } = await requireBrandWrite(brandId);
+  const name = String(formData.get('name') ?? '').trim();
+  const description = String(formData.get('description') ?? '').trim();
+  const benefits = String(formData.get('benefits') ?? '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (!name) throw new ValidationError('Give the product or service a name.');
+
+  const brain = await runtime.store.getBrain(brandId);
+  if (!brain) throw new ValidationError('This brand has not been analysed yet.');
+
+  const { newId } = await import('@morrowlane/shared');
+  const next = structuredClone(brain);
+  next.products = [
+    ...next.products,
+    {
+      name,
+      description,
+      benefits,
+      priceHint: String(formData.get('priceHint') ?? '').trim() || null,
+      id: newId('product'),
+      kind: 'service',
+      audience: [],
+      sourceUrls: [],
+      imageUrls: [],
+      claims: [],
+      ctas: [],
+    },
+  ];
+  next.lockedFields = [...new Set([...brain.lockedFields, 'products'])];
+  next.completeness = scoreCompleteness(next);
+  await runtime.store.saveBrain(next);
+  revalidatePath(`/brands/${brandId}/brain`);
+}
+
+export async function removeBrainProduct(brandId: string, index: number) {
+  const { runtime } = await requireBrandWrite(brandId);
+  const brain = await runtime.store.getBrain(brandId);
+  if (!brain) throw new ValidationError('This brand has not been analysed yet.');
+
+  const next = structuredClone(brain);
+  next.products = next.products.filter((_, position) => position !== index);
+  next.lockedFields = [...new Set([...brain.lockedFields, 'products'])];
+  next.completeness = scoreCompleteness(next);
+  await runtime.store.saveBrain(next);
+  revalidatePath(`/brands/${brandId}/brain`);
 }
 
 /* ------------------------------ Studio --------------------------------- */
@@ -323,7 +496,9 @@ export async function createCampaign(brandId: string, formData: FormData) {
 
   const channels = formData.getAll('channels').map(String).filter(isChannel) as Channel[];
 
-  await enqueueAndMaybeRun({
+  // Same safety contract as the guided path: the product must not have a guarded front
+  // door and an unguarded back one. Power users lose nothing — approval is two taps.
+  const job = await enqueueAndMaybeRun({
     organizationId,
     brandId,
     kind: 'plan_campaign',
@@ -332,11 +507,14 @@ export async function createCampaign(brandId: string, formData: FormData) {
       productName: String(formData.get('productName') ?? '') || null,
       channels: channels.length > 0 ? channels : ['instagram'],
       durationDays: Number(formData.get('durationDays') ?? 30),
+      review: true,
     },
   });
 
   revalidatePath(`/brands/${brandId}/campaigns`);
   revalidatePath(`/brands/${brandId}/calendar`);
+  const campaignId = job?.result && typeof job.result['campaignId'] === 'string' ? job.result['campaignId'] : null;
+  if (campaignId) redirect(`/brands/${brandId}/campaigns/${campaignId}`);
 }
 
 /**
@@ -733,14 +911,22 @@ export async function actOnOpportunity(brandId: string, kind: string, payload: R
   const { organizationId } = await requireBrandWrite(brandId);
 
   if (kind === 'generate_campaign') {
-    await enqueueAndMaybeRun({
+    // review: true — a single tap on the home screen must never put 30 posts on the
+    // calendar. It produces a plan; the user approves it on the campaign page.
+    const job = await enqueueAndMaybeRun({
       organizationId,
       brandId,
       kind: 'plan_campaign',
-      payload: { goal: String(payload['goal'] ?? 'Respond to the market.'), durationDays: 30, channels: [] },
+      payload: {
+        goal: String(payload['goal'] ?? 'Respond to the market.'),
+        durationDays: 30,
+        channels: [],
+        review: true,
+      },
     });
     revalidatePath(`/brands/${brandId}/campaigns`);
-    return;
+    const campaignId = job?.result && typeof job.result['campaignId'] === 'string' ? job.result['campaignId'] : null;
+    redirect(campaignId ? `/brands/${brandId}/campaigns/${campaignId}` : `/brands/${brandId}/campaigns`);
   }
 
   if (kind === 'remix_url') {

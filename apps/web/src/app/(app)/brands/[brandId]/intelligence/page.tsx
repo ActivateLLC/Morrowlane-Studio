@@ -3,6 +3,7 @@ import { Badge, Button, Card, CardBody, CardHeader, EmptyState, Input, PageHeade
 import { actOnOpportunity, addCompetitor, removeCompetitor } from '@/server/actions';
 import { requireBrand } from '@/server/session';
 import { formatDateTime } from '@/lib/format';
+import { ConfirmButton } from '@/components/confirm-button';
 
 /**
  * Competitor intelligence and Trend Radar. The page's job is "what should we do
@@ -85,11 +86,16 @@ export default async function IntelligencePage({ params }: { params: Promise<{ b
             <h2 className="text-sm font-semibold text-ink">Competitors</h2>
           </CardHeader>
           <CardBody className="space-y-4">
-            <form action={addCompetitor.bind(null, brandId)} className="flex gap-2">
-              <Input name="websiteUrl" placeholder="https://competitor.com" required />
-              <Button type="submit" variant="secondary">
-                Watch
-              </Button>
+            <form action={addCompetitor.bind(null, brandId)} className="space-y-2">
+              <div className="flex gap-2">
+                <Input name="websiteUrl" placeholder="https://competitor.com" aria-label="Competitor website" required />
+                <Button type="submit" variant="secondary">
+                  Watch
+                </Button>
+              </div>
+              {/* The action reads `name`; without the input every competitor was named
+                  after its domain. */}
+              <Input name="name" placeholder="What they're called (optional)" aria-label="Competitor name" />
             </form>
             <div className="space-y-3">
               {competitors.map((competitor) => (
@@ -103,9 +109,7 @@ export default async function IntelligencePage({ params }: { params: Promise<{ b
                       </p>
                     </div>
                     <form action={removeCompetitor.bind(null, brandId, competitor.id)}>
-                      <Button type="submit" variant="ghost" size="sm">
-                        Remove
-                      </Button>
+                      <ConfirmButton confirmLabel="Stop watching">Remove</ConfirmButton>
                     </form>
                   </div>
                   {competitor.signals.length > 0 ? (
